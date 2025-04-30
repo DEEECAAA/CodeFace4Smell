@@ -941,7 +941,7 @@ ENGINE = InnoDB;
 DROP TABLE IF EXISTS `codeface`.`commit_dependency` ;
 
 CREATE TABLE IF NOT EXISTS `codeface`.`commit_dependency` (
-  `id` BIGINT NULL AUTO_INCREMENT,
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
   `commitId` BIGINT NOT NULL,
   `file` VARCHAR(255) NOT NULL,
   `entityId` VARCHAR(255) NOT NULL,

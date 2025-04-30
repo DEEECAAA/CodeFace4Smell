@@ -1,15 +1,17 @@
 #!/bin/sh
+set -e
 
-echo "Providing R libraries"
+echo "Installing R base system and development libraries"
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install r-base r-base-dev r-cran-ggplot2 r-cran-tm \
-	r-cran-tm.plugin.mail r-cran-optparse r-cran-igraph r-cran-zoo r-cran-xts \
-	r-cran-lubridate r-cran-xtable r-cran-reshape r-cran-wordnet \
-	r-cran-stringr r-cran-yaml r-cran-plyr r-cran-scales r-cran-gridExtra \
-	r-cran-scales r-cran-RMySQL r-cran-RJSONIO r-cran-RCurl r-cran-mgcv \
-	r-cran-shiny r-cran-dtw r-cran-httpuv r-cran-png \
-	r-cran-rjson r-cran-lsa r-cran-testthat r-cran-arules r-cran-data.table \
-	r-cran-ineq libx11-dev libssh2-1-dev r-bioc-biocinstaller
+# Install base R and core system dependencies
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install \
+  r-base r-base-dev libx11-dev libssh2-1-dev
 
-sudo Rscript packages.R
-
+# Tutti gli altri pacchetti R saranno installati da packages.R
+if [ -f "packages.R" ]; then
+  echo "Running R package installer script"
+  sudo Rscript packages.R
+else
+  echo "Warning: packages.R not found"
+fi

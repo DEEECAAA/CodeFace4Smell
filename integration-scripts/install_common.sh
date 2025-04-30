@@ -1,18 +1,22 @@
 #!/bin/sh
+set -e
 
-echo "Providing common binaries and libraries"
+echo "Installing common system dependencies"
 
-echo "mysql-server mysql-server/root_password password" | sudo debconf-set-selections
-echo "mysql-server mysql-server/root_password_again password" | sudo debconf-set-selections
+# Imposta password MySQL (meglio usare DB dev temporaneo o Docker per production)
+MYSQL_ROOT_PASS="root"
+echo "mysql-server mysql-server/root_password password $MYSQL_ROOT_PASS" | sudo debconf-set-selections
+echo "mysql-server mysql-server/root_password_again password $MYSQL_ROOT_PASS" | sudo debconf-set-selections
 
-sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install sinntp texlive default-jdk \
-	mysql-common mysql-client \
-	mysql-server python-dev exuberant-ctags nodejs git subversion \
-	sloccount graphviz doxygen libxml2-dev libcurl4-openssl-dev \
-	libmysqlclient-dev libcairo2-dev libxt-dev libcairo2-dev libmysqlclient-dev \
-	astyle xsltproc libxml2 libxml2-dev python build-essential libyaml-dev \
-	gfortran python-setuptools python-pkg-resources python-numpy python-matplotlib \
-	python-libxml2 python-lxml python-notify python-lxml gcc libarchive12 python-pip \
-	libxml2-dev libcurl4-openssl-dev xorg-dev libx11-dev libgles2-mesa-dev \
-	libglu1-mesa-dev libxt-dev libpoppler-dev libpoppler-glib-dev python-mock screen
+# Update e installazione pacchetti
+sudo apt-get update -qq
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+  mysql-server mysql-client default-jdk \
+  texlive graphviz doxygen exuberant-ctags git subversion sloccount \
+  libxml2-dev libcurl4-openssl-dev libmysqlclient-dev libcairo2-dev \
+  libxt-dev astyle xsltproc build-essential libyaml-dev gfortran \
+  python3 python3-dev python3-pip python3-setuptools python3-numpy python3-matplotlib \
+  python3-lxml gcc libpoppler-dev libpoppler-glib-dev libx11-dev libglu1-mesa-dev \
+  libgles2-mesa-dev xorg-dev screen
 
+# Pulizia pacchetti duplicati o obsoleti rimossi

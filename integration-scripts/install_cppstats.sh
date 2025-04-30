@@ -1,23 +1,32 @@
 #!/bin/sh
+set -e
 
-export CPPSTATS_VERSION=0.8.4
+CPPSTATS_VERSION=0.8.4
+INSTALL_DIR="$PWD/vendor"
 
-echo "Providing cppstats $CPPSTATS_VERSION"
+echo "Installing cppstats $CPPSTATS_VERSION"
 
-mkdir -p vendor/
-cd vendor/
+mkdir -p "$INSTALL_DIR"
+cd "$INSTALL_DIR"
 
-wget --quiet https://codeload.github.com/clhunsen/cppstats/tar.gz/v$CPPSTATS_VERSION -O /tmp/cppstats.tar.gz
-tar -xvf /tmp/cppstats.tar.gz
-export CPPSTATS=$PWD/cppstats-$CPPSTATS_VERSION/
-echo '#!/bin/bash' > $CPPSTATS/cppstats
-echo "cd $CPPSTATS" >> $CPPSTATS/cppstats
-echo "PYTHONPATH=\"\$PYTHONPATH:$CPPSTATS/lib\" ./cppstats.py \"\$@\"" >> $CPPSTATS/cppstats
-chmod +x $CPPSTATS/cppstats
-wget --quiet http://sdml.info/lmcrs/srcML-Ubuntu12.04-64.tar.gz -O /tmp/srcML.tar.gz
-tar -xvf /tmp/srcML.tar.gz
-cp -rf $PWD/srcML/* $CPPSTATS/lib/srcml/linux/
+# Download cppstats
+wget --quiet https://codeload.github.com/clhunsen/cppstats/tar.gz/v$CPPSTATS_VERSION -O cppstats.tar.gz
+tar -xf cppstats.tar.gz
+CPPSTATS="$INSTALL_DIR/cppstats-$CPPSTATS_VERSION"
 
-sudo ln -sf $CPPSTATS/cppstats /usr/local/bin/cppstats
+# Create wrapper script
+cat <<EOF > "$CPPSTATS/cppstats"
+#!/bin/bash
+cd "$CPPSTATS"
+PYTHONPATH="\$PYTHONPATH:$CPPSTATS/lib" ./cppstats.py "\$@"
+EOF
+
+chmod +x "$CPPSTATS/cppstats"
+sudo ln -sf "$CPPSTATS/cppstats" /usr/local/bin/cppstats
+
+# Download latest srcML manually
+echo ">> You should download a recent srcML manually from: https://www.srcml.org/download/"
+echo ">> And extract it into: $CPPSTATS/lib/srcml/linux/"
+echo ">> This script does NOT fetch old Ubuntu 12.04 binaries anymore."
 
 cd ..

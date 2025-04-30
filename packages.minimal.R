@@ -1,10 +1,16 @@
-# this file installs the minimal set of dependencies, which needs to be installed by source
-# (because either not available on apt-get or because we need the latest version)
-source("http://bioconductor.org/biocLite.R")
-biocLite(c("BiRewire", "graph", "Rgraphviz"))
+# Verifica e installa strumenti base
+if (!requireNamespace("devtools", quietly = TRUE)) install.packages("devtools")
+if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
 
-install.packages(c("statnet","logging", "corrgram"),
-                         dependencies=T)
-install.packages(c("snatm", "tm-plugin-mail"),
-                         repos="http://R-Forge.R-project.org")
-devtools::install_github("shiny-gridster", "wch")
+# Bioconductor
+BiocManager::install(c("BiRewire", "graph", "Rgraphviz"), ask = FALSE)
+
+# CRAN
+install.packages(c("statnet", "logging", "corrgram"), dependencies = TRUE)
+
+# GitHub (pacchetti privati presumibilmente)
+devtools::install_github("wolfgangmauerer/snatm/pkg")
+devtools::install_github("wolfgangmauerer/tm-plugin-mail/pkg")
+
+# Altro GitHub
+devtools::install_github("wch/shiny-gridster")
