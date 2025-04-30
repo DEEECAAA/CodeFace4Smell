@@ -19,7 +19,9 @@
 
 import MySQLdb as mdb
 from datetime import datetime
-from logging import getLogger; log = getLogger(__name__)
+from logging import getLogger;
+
+log = getLogger(__name__)
 from contextlib import contextmanager
 
 @contextmanager
@@ -60,8 +62,8 @@ class DBManager:
             raise
         self.cur = self.con.cursor()
 
-	max_packet_size = 1024*1024*256
-	self.doExec("SET GLOBAL max_allowed_packet=%s", (max_packet_size,))
+        max_packet_size = 1024*1024*256
+        self.doExec("SET GLOBAL max_allowed_packet=%s", (max_packet_size,))
 
     def __del__(self):
         if self.con != None:

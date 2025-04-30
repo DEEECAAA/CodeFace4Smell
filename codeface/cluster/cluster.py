@@ -24,8 +24,8 @@ import shelve
 import pickle
 import os.path
 import argparse
-import codeBlock
-import codeLine
+from . import codeBlock
+from . import codeLine
 import math
 import random
 import itertools

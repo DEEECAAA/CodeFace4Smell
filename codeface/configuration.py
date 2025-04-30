@@ -21,8 +21,8 @@ Encapsulates a configuration as an immutable dict
 
 import yaml
 from shutil import copyfile
-from collections import Mapping
-from logging import getLogger;
+from collections.abc import Mapping
+from logging import getLogger
 from codeface.linktype import LinkType
 
 log = getLogger(__name__)

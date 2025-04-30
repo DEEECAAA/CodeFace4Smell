@@ -34,7 +34,7 @@ from subprocess import Popen, PIPE
 from tempfile import NamedTemporaryFile, mkdtemp
 from time import sleep
 from threading import enumerate as threading_enumerate
-from Queue import Empty
+from queue import Empty
 from datetime import timedelta, datetime
 
 # Represents a job submitted to the batch pool.

@@ -56,13 +56,13 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
     pool = BatchJobPool(int(n_jobs))
     conf = Configuration.load(codeface_conf, project_conf)
     tagging = conf["tagging"]
-    if tagging_type is not "default":
+    if tagging_type != "default":
 
         if not tagging_type in LinkType.get_all_link_types():
             log.critical('Unsupported tagging mechanism specified!')
             raise ConfigurationError('Unsupported tagging mechanism.')
         # we override the configuration value
-        if tagging is not tagging_type:
+        if tagging != tagging_type:
             log.warn(
                 "tagging value is overwritten to {0} because of --tagging"
                 .format(tagging_type))
