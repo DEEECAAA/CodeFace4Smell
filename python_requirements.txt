@@ -3,3 +3,4 @@ progressbar
 pyinotify
 mysqlclient
 notify2
+pyctags==0.5.0

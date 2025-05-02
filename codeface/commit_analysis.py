@@ -21,7 +21,7 @@
 # Copyright 2010, 2011, 2012 by Wolfgang Mauerer <wm@linux-kernel.net>
 # All Rights Reserved.
 
-from TimeSeries import TimeSeries
+from .TimeSeries import TimeSeries
 from logging import getLogger;
 from codeface.linktype import LinkType
 

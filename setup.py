@@ -14,7 +14,7 @@ setup(
     entry_points={'console_scripts': ['codeface = codeface.cli:main']},
     install_requires=[
         'progressbar2',
-        'pyctags',
+        'pyctags==0.5.0',
         'PyYAML',
         'mysqlclient'
     ],

@@ -37,12 +37,12 @@
 import itertools
 import readline
 
-import commit
-import fileCommit
+from . import commit
+from . import fileCommit
 import re
 import os
 import bisect
-import ctags
+import pyctags as ctags
 import tempfile
 import sourceAnalysis
 import shutil
@@ -1311,7 +1311,7 @@ class gitVCS (VCS):
 
         try:
             file_analysis.run_analysis()
-        except Exception, e:
+        except Exception as e:
             log.critical("doxygen analysis error{0} - defaulting to Ctags".format(e))
             return {}, []
 

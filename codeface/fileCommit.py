@@ -20,7 +20,7 @@ The analysis is performed on a file by file basis. A commit can touch multiple
 files however this class considers a given commit only in the context of a
 single file.'''
 
-import commit
+from . import commit
 import bisect
 
 
