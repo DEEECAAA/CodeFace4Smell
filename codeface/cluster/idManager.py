@@ -16,10 +16,10 @@
 # All Rights Reserved.
 
 import re
-from email.Utils import parseaddr
-from PersonInfo import PersonInfo
+from email.utils import parseaddr
+from .PersonInfo import PersonInfo
 from logging import getLogger; log = getLogger(__name__)
-import httplib
+import http.client as httplib
 import urllib
 import json
 import string

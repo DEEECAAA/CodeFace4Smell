@@ -44,11 +44,10 @@ import os
 import bisect
 import pyctags as ctags
 import tempfile
-import sourceAnalysis
+from . import sourceAnalysis
 import shutil
-from fileCommit import FileDict
+from .fileCommit import FileDict
 from progressbar import ProgressBar, Percentage, Bar, ETA
-from ctags import CTags, TagEntry
 from logging import getLogger
 from codeface.linktype import LinkType
 
@@ -1331,55 +1330,37 @@ class gitVCS (VCS):
         return func_lines, file_analysis.src_elem_list
 
     def _parseSrcFileCtags(self, src_file):
-        # temporary file where we write transient data needed for ctags
-        tag_file = tempfile.NamedTemporaryFile()
-
-        # run ctags analysis on the file to create a tags file
-        cmd = "ctags-exuberant -f {0} --fields=nk {1}".format(tag_file.name,
-                                                              src_file).split()
-        output = execute_command(cmd).splitlines()
-
-        # parse ctags
+        # Run ctags with JSON output format
+        cmd = ["ctags", "--output-format=json", "--fields=+n", "-f", "-", src_file]
         try:
-            tags = CTags(tag_file.name)
-        except:
-            log.critical("failure to load ctags file")
-            raise Error("failure to load ctags file")
+            output = execute_command(cmd)
+            lines = output.strip().split("\n")
+            tags = [json.loads(line) for line in lines if line.strip()]
+        except Exception as e:
+            log.critical(f"Failed to run or parse ctags: {e}")
+            return {}
 
-        # locate line numbers and structure names
-        entry = TagEntry()
         func_lines = {}
-        # select the language structures we are interested in identifying
-        # f = functions, s = structs, c = classes, n = namespace
-        # p = function prototype, g = enum, d = macro, t= typedef, u = union
-        structures = ["f", "s", "c", "n", "p", "g", "d", "t", "u"]
-        # TODO: investigate other languages and how ctags assigns the
-        #  structures tags, we may need more languages specific assignments
-        #  in addition to java and c# files, use "ctags --list-kinds" to
-        # see all tag meanings per language
+        # Define structures to include
+        structures = ["function", "struct", "class", "namespace", "prototype", "enum", "macro", "typedef", "union",
+                      "method", "interface"]
+
         fileExt = os.path.splitext(src_file)[1].lower()
         if fileExt in (".java", ".j", ".jav", ".cs", ".js"):
-            structures.append("m") # methods
-            structures.append("i") # interface
+            structures.append("method")
+            structures.append("interface")
         elif fileExt in (".php"):
-            structures.append("i") # interface
-            structures.append("j") # functions
+            structures.append("interface")
+            structures.append("function")
         elif fileExt in (".py"):
-            structures.append("m") # class members
+            structures.append("method")
 
-        while(tags.next(entry)):
-            if entry['kind'] in structures:
-                ## Ctags indexes starting at 1
-                line_num = int(entry['lineNumber']) - 1
-
-                ## Ctags sometimes assigns line numbers 0 in .js files
+        for tag in tags:
+            if tag.get("kind") in structures:
+                line_num = tag.get("line", 1) - 1
                 if line_num < 0:
                     line_num = 0
-
-                func_lines[line_num] = entry['name']
-
-        # clean up temporary files
-        tag_file.close()
+                func_lines[line_num] = tag.get("name", f"unk_{line_num}")
 
         return func_lines
 

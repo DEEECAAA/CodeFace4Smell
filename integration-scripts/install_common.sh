@@ -20,3 +20,16 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   libgles2-mesa-dev xorg-dev screen
 
 # Pulizia pacchetti duplicati o obsoleti rimossi
+
+echo "Installing universal-ctags from source"
+sudo apt-get install -y autoconf automake pkg-config libseccomp-dev libjansson-dev \
+                        libyaml-dev libxml2-dev
+
+git clone https://github.com/universal-ctags/ctags.git /tmp/ctags
+cd /tmp/ctags
+./autogen.sh
+./configure
+make
+sudo make install
+cd -
+rm -rf /tmp/ctags

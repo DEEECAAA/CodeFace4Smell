@@ -20,7 +20,7 @@
 
 import yaml
 import os.path
-import kerninfo
+from . import kerninfo
 import pickle
 import argparse
 from datetime import datetime
