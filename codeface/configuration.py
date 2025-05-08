@@ -84,7 +84,7 @@ class Configuration(Mapping):
     def _load(self, filename):
         '''Helper function that checks loading errors and logs them'''
         try:
-            return yaml.load(open(filename))
+            return yaml.load(open(filename), Loader=yaml.FullLoader)
         except IOError:
             log.exception("Could not open configuration file '{}'".
                     format(filename))
@@ -161,7 +161,7 @@ class Configuration(Mapping):
         filedata = filedata.replace('3months', str(self["revisions"]))
         tmp_file = NamedTemporaryFile(mode='w', prefix=self._conf['project'],
                                      delete=False)
-        tmp_file.write(filedata)
+        tmp_file.write(filedata.encode())
         tmp_file.close()
         copyfile(tmp_file.name, self._local_conf_name)
 

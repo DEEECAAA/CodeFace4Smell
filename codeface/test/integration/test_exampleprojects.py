@@ -220,7 +220,7 @@ class EndToEndTestSetup(unittest.TestCase):
 
     def checkResult(self):
         results = self.getResults()
-        for table, res in results.iteritems():
+        for table, res in results.items():
             if table in self.ignore_tables:
                 if len(res) == 0:
                     print ("Table not filled (expected): ", table)

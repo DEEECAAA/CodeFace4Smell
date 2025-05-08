@@ -464,7 +464,7 @@ def doSubrangeAnalysis(vcs, basepath, revrange=None, subsys="__main__"):
     for i in range(1, len(sublist)):
         path = os.path.join(basepath, "cycle{0}".format(i-1))
        
-        if not(os.path.exists(path)):
+        if not os.path.exists(path):
             os.mkdir(path)
            
         print("Analysing development sub-cycle {0} ({1}..{2})".
@@ -479,7 +479,7 @@ def doRevisionAnalysis(vcs, revs, basepath, subrangeAnalysis=False):
     for i in range(1, len(revs)):
         path = os.path.join(basepath, revs[i])
         
-        if not(os.path.exists(path)):
+        if not os.path.exists(path):
             os.mkdir(path)
             
         print("Analysing {0} development cycle".format(revs[i]))

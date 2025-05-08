@@ -470,12 +470,12 @@ def get_feature_lines_from_file(file_layout_src, filename):
     fileExt = os.path.splitext(filename)[1]
 
     # temporary file where we write transient data needed for cppstats
-    srcFile = tempfile.NamedTemporaryFile(suffix=fileExt, delete=False)
-    featurefile = tempfile.NamedTemporaryFile(suffix=".csv")
+    srcFile = tempfile.NamedTemporaryFile(suffix=fileExt, delete=False, mode="wb")
+    featurefile = tempfile.NamedTemporaryFile(suffix=".csv", mode="wb")
     # generate a source code file from the file_layout_src dictionary
     # and save it to a temporary location
     for line in file_layout_src:
-        srcFile.write(line)
+        srcFile.write(line.encode())
     srcFile.flush()
 
     # run cppstats analysis on the file to get the feature locations
@@ -734,23 +734,25 @@ class gitVCS (VCS):
         for cmt in self._commit_list_dict["__main__"]:
             self._commit_dict[cmt.id] = cmt
 
-    def _Logstring2ID(self, str):
+    def _Logstring2ID(self, log_string):
         """Extract the commit ID from a log string."""
-        match = self.logPattern.search(str)
-        if not(match):
+        match = self.logPattern.search(log_string)
+        if not match:
             log.critical("_Logstring2ID could not parse log string!")
             raise Error("_Logstring2ID could not parse log string!")
 
         return match.group(2)
 
-    def _Logstring2Commit(self, str):
+    def _Logstring2Commit(self, log_bytes):
         """Create an instance of commit.Commit from a given log string.
 
         Must be implemented by every VCS. Turns a string from the list
         returned by getCommitIDsLL into a commit.Commit instance"""
+        # Decodifica i bytes in stringa UTF-8
+        log_str = log_bytes.decode("utf-8")
 
         match = self.logPattern.search(str)
-        if not(match):
+        if not match:
             log.critical("_Logstring2Commit could not parse log string!")
             raise Error("_Logstring2Commit could not parse log string!")
 
@@ -802,7 +804,7 @@ class gitVCS (VCS):
                     format(cmt.id, msg))
             raise ParseError("Empty commit?", cmt.id)
 
-        if not(matched):
+        if not matched:
             raise ParseError(msg[-1], cmt.id)
 
         cmt.diff_info.append((int(files), int(insertions), int(deletions)))
@@ -1017,7 +1019,7 @@ class gitVCS (VCS):
 
 
     def extractCommitData(self, subsys="__main__", link_type=None):
-        if not(self._subsysIsValid(subsys)):
+        if not self._subsysIsValid(subsys):
             log.critical("Subsys specification invalid: {0}\n".format(subsys))
             raise Error("Invalid subsystem specification.")
 
@@ -1236,7 +1238,7 @@ class gitVCS (VCS):
          the blame message analysis.
          '''
 
-        if not(ignoreOldCmts):
+        if not ignoreOldCmts:
             #find all commits that are missing from the commit dictionary
             #recall that fileCommit_dict stores all the commit ids for a
             #file to reference commit objects in the commit_dict
@@ -1388,7 +1390,7 @@ class gitVCS (VCS):
         # setup temp file
         # generate a source code file from the file_layout_src dictionary
         # and save it to a temporary location
-        srcFile = tempfile.NamedTemporaryFile(suffix=fileExt)
+        srcFile = tempfile.NamedTemporaryFile(suffix=fileExt, mode="w", encoding="utf-8")
         for line in file_layout_src:
             srcFile.write(line)
         srcFile.flush()

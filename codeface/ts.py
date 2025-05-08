@@ -57,7 +57,7 @@ def dispatch_ts_analysis(resdir, conf):
     destdir = os.path.join(dbpath, "ts")
     dbm = DBManager(conf)
 
-    if not(os.path.exists(destdir)):
+    if not os.path.exists(destdir):
         os.mkdir(destdir)
 
     # Stage 1: Create the individual time series (and record all time

@@ -41,10 +41,11 @@ from datetime import timedelta, datetime
 BatchJobTuple = namedtuple('BatchJobTuple', ['id', 'func', 'args', 'kwargs',
         'deps', 'startmsg', 'endmsg'])
 class BatchJob(BatchJobTuple):
-    def __init__(self, *args, **kwargs):
-        super(BatchJob, self).__init__(*args, **kwargs)
-        self.done = False
-        self.submitted = False
+    def __new__(cls, *args, **kwargs):
+        obj = super(BatchJob, cls).__new__(cls, *args, **kwargs)
+        obj.done = False
+        obj.submitted = False
+        return obj
 
 class BatchJobPool(object):
     '''
@@ -402,12 +403,15 @@ def check4ctags():
 
     res = execute_command(cmd, None)
 
-    if not(res.startswith(prog_name)):
-        log.error("program '{0}' does not exist".format(prog_name))
+    # Decode to string if result is in bytes
+    if isinstance(res, bytes):
+        res = res.decode("utf-8")
+
+    if not res.startswith(prog_name):
+        log.error("Program '{0}' does not exist".format(prog_name))
         raise Exception("ctags-exuberant not found")
 
-    if not(res.startswith(prog_version)):
-        # TODO: change this to use standard mechanism for error logging
+    if not res.startswith(prog_version):
         log.error("Ctags version '{0}' not found".format(prog_version))
         raise Exception("Incompatible ctags-exuberant version")
 
@@ -421,7 +425,7 @@ def check4cppstats():
     line = "cppstats v0.8.4"
     cmd = "/usr/bin/env cppstats --version".split()
     res = execute_command(cmd)
-    if not (res.startswith(line)):
+    if not res.startswith(line):
         error_message = "expected the first line to start with '{0}' but "\
                         "got '{1}'".format(line, res[0])
         log.error("program cppstats does not exist, or it is not working "

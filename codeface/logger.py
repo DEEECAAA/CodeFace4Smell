@@ -26,6 +26,7 @@ instead of the current handcoded configuration.
 '''
 import logging
 import os
+import io
 import multiprocessing
 from copy import copy
 
@@ -45,7 +46,7 @@ def start_logfile(filename, level_string):
     Start logging to the file specified by *filename* using the log level
     specified in *level_string*.
     '''
-    logfile_handler = _get_log_handler(file(filename, 'w'))
+    logfile_handler = _get_log_handler(open(filename, 'w'))
     logfile_handler.setLevel(_loglevel_from_string(level_string))
     log.devinfo("Opened logfile '{}' with log level '{}'"
             "".format(filename, level_string))
@@ -125,10 +126,19 @@ def _get_log_handler(stream=None):
     FORMAT = "%(asctime)s [$BOLD%(name)s$RESET] %(processName)s %(levelname)s: %(message)s"
     datefmt = '%Y-%m-%d %H:%M:%S'
 
-    if hasattr(handler.stream, "fileno") and os.isatty(handler.stream.fileno()):
+    is_tty = False
+    try:
+        if handler.stream is not None and hasattr(handler.stream, "fileno"):
+            is_tty = os.isatty(handler.stream.fileno())
+    except (io.UnsupportedOperation, AttributeError):
+        # Stream doesn't support fileno (e.g., StringIO)
+        is_tty = False
+
+    if is_tty:
         handler.setFormatter(_ColoredFormatter(_insert_seqs(FORMAT), datefmt=datefmt))
     else:
         handler.setFormatter(logging.Formatter(_remove_seqs(FORMAT), datefmt=datefmt))
+
     return handler
 
 # Initialize the logger that prints to the console.

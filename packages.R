@@ -49,3 +49,7 @@ reinstall.package.from.github("snatm", "wolfgangmauerer/snatm/pkg")
 reinstall.package.from.github("shinyGridster", "wch/shiny-gridster")
 reinstall.package.from.github("shinybootstrap2", "rstudio/shinybootstrap2")
 reinstall.package.from.github("Rgraphviz", "mitchell-joblin/Rgraphviz")
+
+# Forza la reinstallazione di alcuni pacchetti cruciali
+install.packages("shiny", repos = "https://cloud.r-project.org/")
+install.packages("igraph", repos = "https://cloud.r-project.org/")

@@ -15,7 +15,6 @@
 # All Rights Reserved.
 
 import unittest
-import exceptions
 from logging import getLogger; log = getLogger("codeface.test.unit.batchjob")
 from time import sleep
 from random import random
@@ -95,7 +94,7 @@ class Testpool(unittest.TestCase):
         try:
             pool.join()
         except Exception as e:
-            self.assertIn("IOError", str(e))
+            self.assertIn("FileNotFoundError", str(e))
             raised = True
         self.assertEqual(raised, True)
 

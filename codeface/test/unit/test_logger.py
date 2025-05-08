@@ -17,7 +17,7 @@
 import unittest
 import logging
 
-from StringIO import StringIO
+from io import StringIO
 from codeface.logger import (_insert_seqs, _remove_seqs,
         _loglevel_from_string, _get_log_handler, console_handler, log)
 

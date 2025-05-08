@@ -93,11 +93,11 @@ class GitProject(object):
                         else:
                             unlink(f)
                 # Insert the files specified in the commits filetree
-                for f, content in c.filetree.iteritems():
+                for f, content in c.filetree.items():
                     dn, fn = pathsplit(f)
                     if dn and not exists(dn):
                         makedirs(dn)
-                    with file(f, "w") as fd:
+                    with open(f, "w") as fd:
                         fd.write(content)
                 # Perform the commit
                 git("add -A .".split())
@@ -158,10 +158,10 @@ class GitProject(object):
                        project=basename(self.directory)
                 )
             )
-            with file(self.codeface_conf, "w") as fd:
+            with open(self.codeface_conf, "w") as fd:
                 fd.write(configuration)
             for ml_name, ml_file in self.mboxes:
-                with file(ml_file, "w") as fd:
+                with open(ml_file, "w") as fd:
                     fd.write(self.mbox_contents(ml_name))
         finally:
             chdir(cwd)

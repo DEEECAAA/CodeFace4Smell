@@ -128,7 +128,7 @@ class FileCommit:
         return self.fileSnapShots
 
     def getFileSnapShot(self):
-        return self.fileSnapShots.values()[0]
+        return list(self.fileSnapShots.values())[0]
 
     def getFilename(self):
         return self.filename
@@ -149,7 +149,7 @@ class FileCommit:
         self.functionIds.update(functionIds)
         for id in self.functionIds.values():
             self.functionImpl.update({id:[]})
-        self.functionLineNums.extend(sorted(self.functionIds.iterkeys()))
+        self.functionLineNums.extend(sorted(self.functionIds.keys()))
 
     def setSrcElems(self, src_elem_list):
         self._src_elem_list.extend(src_elem_list)

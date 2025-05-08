@@ -63,7 +63,7 @@ class DBManager:
         self.cur = self.con.cursor()
 
         max_packet_size = 1024*1024*256
-        self.doExec("SET GLOBAL max_allowed_packet=%s", (max_packet_size,))
+        #self.doExec("SET GLOBAL max_allowed_packet=%s", (max_packet_size,))
 
     def __del__(self):
         if self.con != None:
@@ -331,7 +331,7 @@ class DBManager:
             previous_rev = None
             if len(tags) > 0:
                 previous_rev = tags[-1]
-            for rev, rc in zip(revs, rcs)[len(tags):]:
+            for rev, rc in list(zip(revs, rcs))[len(tags):]:
                 self.doExecCommit("INSERT INTO release_timeline "
                                     "(type, tag, projectId) "
                                     "VALUES (%s, %s, %s)",
