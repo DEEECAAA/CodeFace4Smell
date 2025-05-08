@@ -800,7 +800,7 @@ store.initiate.response <- function(conf, ir, ml.id, range.id) {
 }
 
 store.communication.graph <- function(conf, communication.network, range.id) {
-  g <- graph.adjacency(communication.network)
+  g <- graph_from_adjacency_matrix(communication.network, mode = "undirected")
   edgelist <- get.data.frame(g, what="edges")
   colnames(edgelist) <- c("fromId", "toId")
   edgelist <- gen.weighted.edgelist(edgelist)

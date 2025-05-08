@@ -35,12 +35,12 @@ graph.comparison.test <- function () {
   r.8 <- c(0,0,0,0,1,0,1,0)
 
   adj.matrix <- t(matrix(data = c(r.1,r.2,r.3,r.4,r.5,r.6,r.7,r.8), ncol = 8, nrow = 8))
-  g.1 <- graph.adjacency(adj.matrix)
+  g.1 <- graph_from_adjacency_matrix(adj.matrix)
   names <- c("joe", "bill", "jill", "mike", "ben", "chris", "meg", "Dee")
   V(g.1)$Id <- names
   idx <- 1:vcount(g.1)
   rand.idx <- sample(idx,size=length(idx))
-  g.2 <- graph.adjacency(g.1[rand.idx,rand.idx])
+  g.2 <- graph_from_adjacency_matrix(g.1[rand.idx,rand.idx])
   res <- graph.comparison(g.1, g.2)
   if(all(res==0)){
     print("Test Passed")

@@ -643,7 +643,7 @@ plot.comm.subsys <- function(.comm, .id.subsys, filename, .alg,
 ## spinglass.
 plot.group <- function(N, .tags, .iddb, .comm) {
   s <- which(.comm$membership==N)
-  g <- graph.adjacency(.tags[s,s], mode="directed")
+  g <- graph_from_adjacency_matrix(.tags[s, s], mode = "directed")
   V(g)$name <- IDs.to.names(.iddb, V(g)$name)
   plot(g, vertex.label=IDs.to.names(.iddb, s))
 }
@@ -666,7 +666,7 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
     colnames(subset) <- 1:ncol(subset)
   }
 
-  g <- graph.adjacency(subset, mode="directed", weighted=TRUE)
+  g <- graph_from_adjacency_matrix(subset, mode="directed", weighted=TRUE)
 
   ## as.character is important. The igraph C export routines bark
   ## otherwise (not sure what the actual issue is)
@@ -901,9 +901,9 @@ compute.community.links <- function(g, .comm, N) {
 ##========================================================================
 compute.pagerank <- function(.tags, .damping=0.85, transpose=FALSE, weights=NULL) {
   if (transpose) {
-    g <- graph.adjacency(t(.tags), mode="directed", weighted=weights)
+    g <- graph_from_adjacency_matrix(t(.tags), mode="directed", weighted=weights)
   } else {
-    g <- graph.adjacency(.tags, mode="directed", weighted=weights)
+    g <- graph_from_adjacency_matrix(.tags, mode="directed", weighted=weights)
   }
   ranks <- page.rank(g, directed=TRUE, damping=.damping)
 
@@ -1092,7 +1092,7 @@ performGraphAnalysis <- function(conf, adjMatrix, ids, outdir, id.subsys=NULL){
   adjMatrix <- adjMatrix * abs(diag(1, n, n) - 1)
 
   logdevinfo("Computing adjacency matrices", logger="cluster.persons")
-  g <- graph.adjacency(adjMatrix, mode="directed", weighted=TRUE)
+  g <- graph_from_adjacency_matrix(adjMatrix, mode="directed", weighted=TRUE)
   idx <- V(g)
 
   ## Working with the adjacency matrices is easier if the IDs are numbered
@@ -1320,7 +1320,7 @@ test.community.quality <- function() {
 
   adj.matrix <- matrix(data = c(r.1,r.2,r.3,r.4,r.5,r.6,r.7,r.8), ncol = 8, nrow = 8)
 
-  g <- graph.adjacency(adj.matrix)
+  g <- graph_from_adjacency_matrix(adj.matrix)
 
 
   ## Test that modularity is correct
@@ -1349,7 +1349,7 @@ test.community.quality.modularity <- function() {
 
   adj.matrix <- t(matrix(data = c(r.1,r.2,r.3,r.4,r.5,r.6,r.7,r.8), ncol = 8, nrow = 8))
 
-  g <- graph.adjacency(adj.matrix)
+  g <- graph_from_adjacency_matrix(adj.matrix)
   g.clust <- list()
   g.clust$membership <- c(1,1,1,2,2,3,3,3)
 

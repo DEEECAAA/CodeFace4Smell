@@ -100,7 +100,7 @@ construct.twomode.graph <- function(edgelist, adjmat.twomode, threshold, con,
 
   ## Construct an igraph object with the essential pieces of information
   ## (the other covariates can be restored from this basis)
-  g <- graph.adjacency(adjmat.twomode, mode="undirected", weighted=TRUE)
+  g <- graph_from_adjacency_matrix(as.matrix(adjmat.twomode), mode = "undirected", weighted = TRUE)
   V(g)$degree <- deg
   V(g)$type <- "keyword"
   V(g)$type[people] <- "person"
@@ -294,7 +294,7 @@ gen.combined.network <- function(interest.network, commnet) {
 
   ## TODO: Why are different packages used to compute the graph measures?
   ## They should all be supported by SNA
-  network.red.ig <- graph.adjacency(network.red, mode="directed")
+  network.red.ig <- graph_from_adjacency_matrix(network.red, mode = "directed")
   deg <- sna::degree(network.red, cmode="freeman", gmode="graph", ignore.eval=TRUE)
   betw <- igraph::betweenness(network.red.ig, directed=FALSE)
   clo <- igraph::closeness(network.red.ig)

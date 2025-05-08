@@ -135,12 +135,12 @@ graph.comparison <- function(g.1, g.2) {
   idx.2 <- match(intersectNames, V(g.2)$Id)
 
   ## Build adjacency matrix of interesecting ids
-  adj.matrix.1.intersect <- g.1[idx.1, idx.1]
-  adj.matrix.2.intersect <- g.2[idx.2, idx.2]
+  adj.matrix.1.intersect <- as.matrix(get.adjacency(induced_subgraph(g.1, idx.1), attr = "weight"))
+  adj.matrix.2.intersect <- as.matrix(get.adjacency(induced_subgraph(g.2, idx.2), attr = "weight"))
 
   ## Build igraph graph objects
-  g.1.intersect <- graph.adjacency(adj.matrix.1.intersect, mode = "directed")
-  g.2.intersect <- graph.adjacency(adj.matrix.2.intersect, mode = "directed")
+  g.1.intersect <- graph_from_adjacency_matrix(adj.matrix.1.intersect, mode = "directed", weighted = TRUE)
+  g.2.intersect <- graph_from_adjacency_matrix(adj.matrix.2.intersect, mode = "directed", weighted = TRUE)
 
   graph.diff <- graph.difference(g.1.intersect, g.2.intersect)
 
