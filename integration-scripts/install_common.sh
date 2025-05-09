@@ -25,6 +25,10 @@ echo "Installing universal-ctags from source"
 sudo apt-get install -y autoconf automake pkg-config libseccomp-dev libjansson-dev \
                         libyaml-dev libxml2-dev
 
+echo "Installing dbus dependencies"
+sudo apt-get install -y libdbus-1-dev libdbus-glib-1-dev
+pip install dbus-python
+
 git clone https://github.com/universal-ctags/ctags.git /tmp/ctags
 cd /tmp/ctags
 ./autogen.sh
