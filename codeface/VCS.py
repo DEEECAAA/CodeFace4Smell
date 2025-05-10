@@ -736,6 +736,7 @@ class gitVCS (VCS):
 
     def _Logstring2ID(self, log_string):
         """Extract the commit ID from a log string."""
+        log_string = log_string.decode("utf-8")
         match = self.logPattern.search(log_string)
         if not match:
             log.critical("_Logstring2ID could not parse log string!")
@@ -751,7 +752,7 @@ class gitVCS (VCS):
         # Decodifica i bytes in stringa UTF-8
         log_str = log_bytes.decode("utf-8")
 
-        match = self.logPattern.search(str)
+        match = self.logPattern.search(log_str)
         if not match:
             log.critical("_Logstring2Commit could not parse log string!")
             raise Error("_Logstring2Commit could not parse log string!")

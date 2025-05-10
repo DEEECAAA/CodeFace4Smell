@@ -22,6 +22,7 @@ fi
 
 # Install dependencies
 pip install --upgrade setuptools mock
+pip install notify2
 
 # Development install
 if [ -f "setup.py" ]; then
