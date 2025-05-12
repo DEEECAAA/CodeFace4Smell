@@ -777,17 +777,17 @@ class gitVCS (VCS):
         matched = False
 
         try:
-            match = self.diffStatFilesPattern.search(msg[-1])
+            match = self.diffStatFilesPattern.search(msg[-1].decode("utf-8"))
             if (match):
                 files = match.group(1)
                 matched = True
 
-            match = self.diffStatInsertPattern.search(msg[-1])
+            match = self.diffStatInsertPattern.search(msg[-1].decode("utf-8"))
             if (match):
                 insertions = match.group(1)
                 matched = True
 
-            match = self.diffStatDeletePattern.search(msg[-1])
+            match = self.diffStatDeletePattern.search(msg[-1].decode("utf-8"))
             if (match):
                 deletions = match.group(1)
                 matched = True

@@ -1,25 +1,51 @@
-#!/bin/sh
+#!/bin/bash
 set -e
 
-echo "Installing R base system and development libraries"
-
-# Install base R and core system dependencies
+echo "▶ Updating package lists..."
 sudo apt-get update -qq
-sudo DEBIAN_FRONTEND=noninteractive apt-get -qqy install \
-  r-base r-base-dev libx11-dev libssh2-1-dev
 
-# Install the core testthat package
-echo "Installing required R packages manually"
-Rscript -e 'install.packages("testthat", repos="https://cloud.r-project.org")'
+echo "▶ Fixing held or broken packages..."
+sudo apt-get install -y --allow-downgrades pkg-config || {
+  echo "❌ Failed to install pkg-config (possibly due to pkgconf conflict)."
+  exit 1
+}
 
-# Determine script and parent directory
-SCRIPT_DIR="$( cd "$( dirname "$0" )" && pwd )"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+echo "▶ Installing R base and system dependencies for R packages..."
+sudo apt-get install -y \
+  r-base r-base-dev libx11-dev libssh2-1-dev \
+  libharfbuzz-dev libfribidi-dev libfreetype6-dev libpng-dev \
+  libcurl4-openssl-dev libssl-dev libxml2-dev libgit2-dev \
+  libglpk-dev libgsl-dev libudunits2-dev libgdal-dev libgeos-dev \
+  libproj-dev || {
+    echo "❌ Failed installing one or more system dependencies."
+    exit 1
+  }
 
-# Run additional R package installs from packages.R
-if [ -f "$PROJECT_DIR/packages.R" ]; then
-  echo "Running R package installer script at $PROJECT_DIR/packages.R"
-  Rscript "$PROJECT_DIR/packages.R"
+echo "✅ System dependencies installed."
+
+echo "▶ Installing core R packages from CRAN..."
+Rscript -e 'install.packages(c(
+  "testthat", "devtools", "pbkrtest", "lme4", "nloptr",
+  "animation", "magick", "pkgdown", "ragg", "textshaping"
+), repos = "https://cloud.r-project.org")' || {
+  echo "❌ Failed to install R packages from CRAN."
+  exit 1
+}
+
+echo "✅ All core R packages installed."
+
+PACKAGE_SCRIPT="/vagrant/packages.R"
+echo "▶ Checking for project-specific package file at: $PACKAGE_SCRIPT"
+
+if [ -f "$PACKAGE_SCRIPT" ]; then
+  echo "▶ Running packages.R..."
+  Rscript "$PACKAGE_SCRIPT" || {
+    echo "❌ Failed running packages.R"
+    exit 1
+  }
+  echo "✅ Finished packages.R"
 else
-  echo "Warning: packages.R not found in $PROJECT_DIR"
+  echo "❌ packages.R not found at $PACKAGE_SCRIPT"
+  ls -la /vagrant
+  exit 1
 fi
