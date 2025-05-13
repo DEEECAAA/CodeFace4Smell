@@ -25,6 +25,7 @@ from datetime import datetime
 from time import strptime
 from random import Random
 import re
+import yaml
 
 _Author = namedtuple("_Author", ["name", "email"])
 class Author(_Author):
@@ -32,9 +33,8 @@ class Author(_Author):
         return "{a.name} <{a.email}>".format(a=self)
 Commit = namedtuple("Commit", ["author", "committer", "datetime", "filetree", "signoff", "tags"])
 Tag = namedtuple("Tag", ["author", "datetime", "type"])
-iso8601 = re.compile(r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}'
-                     r'([+-]\d{2}:\d{2})?$')
-iso8601_simple = re.compile(r'^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}$')
+iso8601 = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\+\d{2}:\d{2})?")
+iso8601_simple = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$")
 
 class GitProject(object):
     '''
@@ -64,20 +64,17 @@ class GitProject(object):
         cwd = getcwd()
         try:
             chdir(self.directory)
+
             def git(cmds, committer=None, commitdate=None, authordate=None):
-                if committer or commitdate or authordate:
-                    env = dict(environ)
-                    if committer:
-                        env["GIT_COMMITTER_NAME"] = committer.name
-                        env["GIT_COMMITTER_EMAIL"] = committer.email
-                    if commitdate:
-                        env["GIT_COMMITTER_DATE"] = commitdate
-                    if authordate:
-                        # There is no way to set this via command line.
-                        env["GIT_AUTHOR_DATE"] = authordate
-                    check_call(["git"] + cmds, env=env)
-                else:
-                    check_call(["git"] + cmds)
+                env = dict(environ)
+                if committer:
+                    env["GIT_COMMITTER_NAME"] = committer.name
+                    env["GIT_COMMITTER_EMAIL"] = committer.email
+                if commitdate:
+                    env["GIT_COMMITTER_DATE"] = commitdate
+                if authordate:
+                    env["GIT_AUTHOR_DATE"] = authordate
+                check_call(["git"] + cmds, env=env)
 
             git(["init"])
             next_release = 0
@@ -85,84 +82,67 @@ class GitProject(object):
             release_tags = []
             rc_tags = {}
             for i, c in enumerate(self._commits):
-                # First, clear the directory
                 for f in listdir("."):
                     if f != ".git":
-                        if isdir(f):
+                        if exists(f) and isdir(f):
                             rmtree(f)
-                        else:
+                        elif exists(f):
                             unlink(f)
-                # Insert the files specified in the commits filetree
                 for f, content in c.filetree.items():
                     dn, fn = pathsplit(f)
                     if dn and not exists(dn):
                         makedirs(dn)
                     with open(f, "w") as fd:
                         fd.write(content)
-                # Perform the commit
                 git("add -A .".split())
-                commitmsg = "Commit {}\n\nCommit message\n\n".format(i)
+                commitmsg = f"Commit {i}\n\nCommit message\n\n"
                 for signer in c.signoff:
-                    commitmsg += "Signed-off-by: {}\n".format(str(signer))
-
+                    commitmsg += f"Signed-off-by: {str(signer)}\n"
                 if not iso8601.match(c.datetime):
-                    raise "expected iso8601 date (timezone is optional" \
-                          "and set to +01:00 if not available)"
-                if iso8601_simple.match(c.datetime):
-                    timezoned_date = c.datetime + "+01:00"
-                else:
-                    timezoned_date = c.datetime
-
-                git(["commit",
-                     "--author", str(c.author),
-                     "--date", timezoned_date,
-                     "-m", commitmsg],
-                    committer=c.committer, commitdate=timezoned_date,
-                    authordate=timezoned_date)
-                # Tag the commit
+                    raise ValueError("expected iso8601 date (timezone is optional and set to +01:00 if not available)")
+                timezoned_date = c.datetime + "+01:00" if iso8601_simple.match(c.datetime) else c.datetime
+                git(["commit", "--author", str(c.author), "--date", timezoned_date, "-m", commitmsg],
+                    committer=c.committer, commitdate=timezoned_date, authordate=timezoned_date)
                 for tag in c.tags:
-                    name = "v{}_{}".format(next_release, tag.type)
+                    name = f"v{next_release}_{tag.type}"
                     if tag.type == "rc":
-                        name += "_{}".format(next_rc)
-                        rc_tags.setdefault(next_release, name) # do not overwrite first rc
+                        name += f"_{next_rc}"
+                        rc_tags.setdefault(next_release, name)
                         next_rc += 1
                     elif tag.type == "release":
                         release_tags.append(name)
                         next_release += 1
                     git(["tag", name])
-            # Create codeface test configuration
-            configuration = dedent("""
-            ---
-            project: {project}
-            repo: {project} # Relative to git-dir as specified on the command line
-            description: {project} Description
-            mailinglists:
-                -   name: {project}.dev1
-                    type: dev
-                    source: generated
-                -   name: {project}.dev2
-                    type: dev
-                    source: generated
-                -   name: {project}.user1
-                    type: user
-                    source: generated
-                -   name: {project}.user2
-                    type: user
-                    source: generated
-            revisions: {release_tags}
-            rcs : {rctags}
-            tagging: {tagging}
-            """.format(release_tags=str(release_tags),
-                       tagging=self._tagging,
-                       rctags=str([rc_tags.get(i, release_tags[i]) for i in range(len(release_tags))]),
-                       project=basename(self.directory)
-                )
-            )
+
+            # Allineamento delle due liste
+            rcs = [rc_tags.get(i, release_tags[i]) for i in range(len(release_tags))]
+            if len(release_tags) != len(rcs):
+                raise ValueError(f"Mismatch between revisions ({len(release_tags)}) and rcs ({len(rcs)})")
+
+            basename_dir = basename(self.directory)
+
+            config_data = {
+                "project": basename_dir,
+                "repo": basename_dir,
+                "description": f"{basename_dir} Description",
+                "mailinglists": [
+                    {"name": f"{basename_dir}.dev1", "type": "dev", "source": "generated"},
+                    {"name": f"{basename_dir}.dev2", "type": "dev", "source": "generated"},
+                    {"name": f"{basename_dir}.user1", "type": "user", "source": "generated"},
+                    {"name": f"{basename_dir}.user2", "type": "user", "source": "generated"},
+                ],
+                "revisions": release_tags,
+                "rcs": rcs,
+                "tagging": self._tagging
+            }
+
             with open(self.codeface_conf, "w") as fd:
-                fd.write(configuration)
+                yaml.dump(config_data, fd, sort_keys=False)
+
             for ml_name, ml_file in self.mboxes:
                 with open(ml_file, "w") as fd:
                     fd.write(self.mbox_contents(ml_name))
+
         finally:
             chdir(cwd)
 

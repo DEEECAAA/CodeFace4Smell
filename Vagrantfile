@@ -17,14 +17,14 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
 
   # Setup provisioning
-  config.vm.provision "shell", path: "integration-scripts/install_repositories.sh"
-  config.vm.provision "shell", path: "integration-scripts/install_common.sh"
-  config.vm.provision "shell", path: "integration-scripts/install_codeface_R.sh"
-  config.vm.provision "shell", path: "integration-scripts/install_codeface_node.sh"
-  config.vm.provision "shell", path: "integration-scripts/install_codeface_python.sh"
-  config.vm.provision "shell", path: "integration-scripts/install_cppstats.sh"
-  config.vm.provision "shell", path: "integration-scripts/setup_database.sh"
+  config.vm.provision "shell", path: "integration-scripts/install_repositories.sh", run: "always"
+  config.vm.provision "shell", path: "integration-scripts/install_common.sh", run: "always"
+  config.vm.provision "shell", path: "integration-scripts/install_codeface_R.sh", run: "always"
+  config.vm.provision "shell", path: "integration-scripts/install_codeface_node.sh", run: "always"
+  config.vm.provision "shell", path: "integration-scripts/install_codeface_python.sh", run: "always"
+  config.vm.provision "shell", path: "integration-scripts/install_cppstats.sh", run: "always"
+  config.vm.provision "shell", path: "integration-scripts/setup_database.sh", run: "always"
 
   # Test execution
-  config.vm.provision "shell", path: "integration-scripts/test_codeface.sh"
+  config.vm.provision "shell", path: "integration-scripts/test_codeface.sh", run: "always"
 end

@@ -34,6 +34,15 @@ Rscript -e 'install.packages(c(
 
 echo "✅ All core R packages installed."
 
+echo "▶ Installing system libraries for Rgraphviz..."
+sudo apt-get install -y graphviz libgraphviz-dev
+
+echo "▶ Installing Rgraphviz from Bioconductor..."
+Rscript -e 'if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager"); BiocManager::install("Rgraphviz")' || {
+  echo "❌ Failed to install Rgraphviz"
+  exit 1
+}
+
 PACKAGE_SCRIPT="/vagrant/packages.R"
 echo "▶ Checking for project-specific package file at: $PACKAGE_SCRIPT"
 

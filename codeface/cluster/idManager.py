@@ -20,7 +20,7 @@ from email.utils import parseaddr
 from .PersonInfo import PersonInfo
 from logging import getLogger; log = getLogger(__name__)
 import http.client as httplib
-import urllib
+import urllib.parse
 import json
 import string
 import random
@@ -103,7 +103,7 @@ class idManager:
     def _query_user_id(self, name, email):
         """Query the ID database for a contributor ID"""
 
-        params = urllib.urlencode({'projectID': self._projectID,
+        params = urllib.parse.urlencode({'projectID': self._projectID,
                                    'name': name,
                                    'email': email})
         headers = { "Content-type":
@@ -143,7 +143,7 @@ class idManager:
 
         # Construct a local instance of PersonInfo for the contributor
         # if it is not yet available
-        if (not(self.persons.has_key(ID))):
+        if ID not in self.persons:
             self.persons[ID] = PersonInfo(self.subsys_names, ID, name, email)
 
         return ID
@@ -159,6 +159,6 @@ class idManager:
         # to cause parsing problems in later stages
         name = name.replace('\"', "")
         name = name.replace("\'", "")
-        name = string.lstrip(string.rstrip(name))
+        name = name.strip()
 
         return name

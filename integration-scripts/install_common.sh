@@ -3,11 +3,6 @@ set -e
 
 echo "Installing common system dependencies"
 
-# Imposta password MySQL (meglio usare DB dev temporaneo o Docker per production)
-MYSQL_ROOT_PASS="root"
-echo "mysql-server mysql-server/root_password password $MYSQL_ROOT_PASS" | sudo debconf-set-selections
-echo "mysql-server mysql-server/root_password_again password $MYSQL_ROOT_PASS" | sudo debconf-set-selections
-
 # Update e installazione pacchetti
 sudo apt-get update -qq
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \

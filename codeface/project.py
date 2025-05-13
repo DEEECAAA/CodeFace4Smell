@@ -127,8 +127,7 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
         # STAGE 2: Cluster analysis
         exe = abspath(resource_filename(__name__, "R/cluster/persons.r"))
         cwd, _ = pathsplit(exe)
-        cmd = []
-        cmd.append(exe)
+        cmd = ["Rscript", exe]
         cmd.extend(("--loglevel", loglevel))
         if logfile:
             cmd.extend(("--logfile", "{}.R.r{}".format(logfile, i)))

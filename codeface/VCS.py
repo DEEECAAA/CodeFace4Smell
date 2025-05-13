@@ -905,6 +905,8 @@ class gitVCS (VCS):
         # by line breaks, so restore the original state first and then
         # do a decomposition into parts
 
+        if isinstance(msg, bytes):
+            msg = msg.decode("utf-8", errors="ignore")
         parts = msg.split("\n\n")
 
         # Find the chunk that contains the commit id (for 99.9% of all
@@ -1487,8 +1489,8 @@ class gitVCS (VCS):
                    '.d', '.php4', '.php5', '.inc', '.phtml', '.m', '.mm',
                    '.f', '.for', '.f90', '.idl', '.ddl', '.odl', '.tcl')
 
-        fileNames = [fileName for fileName in all_files if
-                     fileName.lower().endswith(fileExt)]
+        fileNames = [fileName.decode('utf-8').lower() for fileName in all_files if isinstance(fileName, bytes) and fileName.decode('utf-8').lower().endswith(fileExt)]
+
 
         self.setFileNames(fileNames)
 

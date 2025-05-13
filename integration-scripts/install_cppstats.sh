@@ -24,6 +24,10 @@ EOF
 chmod +x "$CPPSTATS/cppstats"
 sudo ln -sf "$CPPSTATS/cppstats" /usr/local/bin/cppstats
 
+# Install required Python dependencies
+echo "Installing Python dependency: lxml"
+pip install lxml
+
 # Download latest srcML manually
 echo ">> You should download a recent srcML manually from: https://www.srcml.org/download/"
 echo ">> And extract it into: $CPPSTATS/lib/srcml/linux/"
