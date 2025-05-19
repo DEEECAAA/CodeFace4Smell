@@ -128,26 +128,40 @@ timezone.string <- function(date, timezone) {
 
 do.update.timezone.information <- function(conf, project.id) {
   ## Query all commits which have author timezones
-  res <- dbGetQuery(conf$con, str_c("SELECT id, authorDate, authorTimeOffset",
-                             " FROM commit WHERE (NOT authorTimeOffset IS ",
-                             " NULL) AND projectId=", project.id))
-  ## Process all commits and fill the list
+  res <- dbGetQuery(conf$con, str_c(
+    "SELECT id, authorDate, authorTimeOffset ",
+    "FROM commit WHERE (NOT authorTimeOffset IS NULL) AND projectId=", project.id
+  ))
+
   logdevinfo(paste("Processing", nrow(res), "commits for time zone info..."))
 
-  zones <- mclapply(1:nrow(res), function(i) {
-    val <- paste("(", res$id[[i]], ", '", timezone.string(res$authorDate[[i]],
-                                                          res$authorTimeOffset[[i]]),
-                 "')", sep="")
-    return(val)
-  })
+  for (i in 1:nrow(res)) {
+    commit_id <- res$id[[i]]
+    author_date <- res$authorDate[[i]]
+    author_offset <- res$authorTimeOffset[[i]]
 
-  dbSendQuery(conf$con, str_c(
-    "INSERT INTO commit (id, authorTimezones) VALUES ",
-    do.call(paste, c(zones, list(sep=", "))),
-    " ON DUPLICATE KEY UPDATE authorTimezones=VALUES(authorTimezones);"))
+    # Verifica validità dei valori
+    if (!is.null(author_date) && !is.na(author_date) &&
+        !is.null(author_offset) && !is.na(author_offset)) {
 
-  logdevinfo(paste("Updated", length(zones), "timezone entries"))
+      tzstring <- timezone.string(author_date, author_offset)
+    } else {
+      tzstring <- "UTC"  # fallback predefinito
+      logdevinfo(paste("Fallback UTC for commit ID", commit_id))
+    }
+
+    # Costruzione e invio query SQL
+    query <- str_c(
+      "UPDATE commit SET authorTimezones = '", tzstring,
+      "' WHERE id = ", commit_id, ";"
+    )
+
+    dbSendQuery(conf$con, query)
+  }
+
+  logdevinfo(paste("Updated", nrow(res), "timezone entries"))
 }
+
 
 ## Compute the number of different timezones involved in a project's range
 get.range.timezones.number <- function(conf, start.date, end.date) {

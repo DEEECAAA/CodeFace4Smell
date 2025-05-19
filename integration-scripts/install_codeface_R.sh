@@ -26,7 +26,7 @@ echo "✅ System dependencies installed."
 echo "▶ Installing core R packages from CRAN..."
 Rscript -e 'install.packages(c(
   "testthat", "devtools", "pbkrtest", "lme4", "nloptr",
-  "animation", "magick", "pkgdown", "ragg", "textshaping"
+  "animation", "magick", "pkgdown", "ragg", "textshaping", "svglite"
 ), repos = "https://cloud.r-project.org")' || {
   echo "❌ Failed to install R packages from CRAN."
   exit 1
@@ -37,8 +37,8 @@ echo "✅ All core R packages installed."
 echo "▶ Installing system libraries for Rgraphviz..."
 sudo apt-get install -y graphviz libgraphviz-dev
 
-echo "▶ Installing Rgraphviz from Bioconductor..."
-Rscript -e 'if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager"); BiocManager::install("Rgraphviz")' || {
+mkdir -p "$HOME/R/x86_64-pc-linux-gnu-library/4.5"
+Rscript -e 'Sys.setenv(R_LIBS_USER="~/R/x86_64-pc-linux-gnu-library/4.5"); if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager", lib=Sys.getenv("R_LIBS_USER")); BiocManager::install("Rgraphviz", lib=Sys.getenv("R_LIBS_USER"))' || {
   echo "❌ Failed to install Rgraphviz"
   exit 1
 }

@@ -253,7 +253,7 @@ def execute_command(cmd, ignore_errors=False, direct_io=False, cwd=None):
     log.debug("Running command: {}".format(jcmd))
     try:
         if direct_io:
-            pipe = Popen(cmd, cwd=cwd)
+            pipe = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=cwd)
         else:
             pipe = Popen(cmd, stdout=PIPE, stderr=PIPE, cwd=cwd)
         stdout, stderr = pipe.communicate()
@@ -278,7 +278,7 @@ def execute_command(cmd, ignore_errors=False, direct_io=False, cwd=None):
                   .format(jcmd, pipe.returncode, stdout, stderr)
             log.error(msg)
             raise Exception(msg)
-    return stdout
+    return stdout.decode("utf-8") if stdout is not None else ""
 
 def _convert_dot_file(dotfile):
     '''

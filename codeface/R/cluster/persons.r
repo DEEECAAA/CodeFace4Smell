@@ -1367,5 +1367,6 @@ test.community.quality.modularity <- function() {
 config.script.run({
   conf <- config.from.args(positional.args=list("resdir", "range.id"),
                            require.project=TRUE)
+  loginfo(str_c("DEBUG: conf$pid = ", conf$pid))
   performAnalysis(conf$resdir, conf)
 })

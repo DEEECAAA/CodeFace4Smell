@@ -736,7 +736,8 @@ class gitVCS (VCS):
 
     def _Logstring2ID(self, log_string):
         """Extract the commit ID from a log string."""
-        log_string = log_string.decode("utf-8")
+        if isinstance(log_string, bytes):
+            log_string = log_string.decode("utf-8", errors="replace")
         match = self.logPattern.search(log_string)
         if not match:
             log.critical("_Logstring2ID could not parse log string!")
@@ -749,8 +750,12 @@ class gitVCS (VCS):
 
         Must be implemented by every VCS. Turns a string from the list
         returned by getCommitIDsLL into a commit.Commit instance"""
-        # Decodifica i bytes in stringa UTF-8
-        log_str = log_bytes.decode("utf-8")
+
+        # Decodifica i byte in stringa, solo se necessario
+        if isinstance(log_bytes, bytes):
+            log_str = log_bytes.decode("utf-8", errors="replace")
+        else:
+            log_str = log_bytes
 
         match = self.logPattern.search(log_str)
         if not match:
@@ -777,17 +782,21 @@ class gitVCS (VCS):
         matched = False
 
         try:
-            match = self.diffStatFilesPattern.search(msg[-1].decode("utf-8"))
+            line = msg[-1]
+            if isinstance(line, bytes):
+                line = line.decode("utf-8", errors="replace")
+
+            match = self.diffStatFilesPattern.search(line)
             if (match):
                 files = match.group(1)
                 matched = True
 
-            match = self.diffStatInsertPattern.search(msg[-1].decode("utf-8"))
+            match = self.diffStatInsertPattern.search(line)
             if (match):
                 insertions = match.group(1)
                 matched = True
 
-            match = self.diffStatDeletePattern.search(msg[-1].decode("utf-8"))
+            match = self.diffStatDeletePattern.search(line)
             if (match):
                 deletions = match.group(1)
                 matched = True
@@ -795,7 +804,7 @@ class gitVCS (VCS):
             # Check if this is a genuine empty commit
             # Since the commit message is indented by 4 spaces
             # we check if the last line of the commit still starts this way.
-            if not matched and msg[-1].startswith("    "):
+            if not matched and line.startswith("    "):
                 log.devinfo("Empty commit. Commit <id {}> is: '{}'".
                             format(cmt.id, msg))
                 matched = True
@@ -806,7 +815,7 @@ class gitVCS (VCS):
             raise ParseError("Empty commit?", cmt.id)
 
         if not matched:
-            raise ParseError(msg[-1], cmt.id)
+            raise ParseError(line, cmt.id)
 
         cmt.diff_info.append((int(files), int(insertions), int(deletions)))
 

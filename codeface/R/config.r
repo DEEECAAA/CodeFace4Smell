@@ -171,6 +171,12 @@ config.from.args <- function(positional.args=list(), extra.args=list(),
 
   ## Store positional arguments under their names in the conf object
   conf[unlist(positional.args)] <- args
+
+  # Se range.id è fornito come argomento, mappalo su conf$pid
+  if (!is.null(conf$range.id)) {
+     conf$pid <- as.integer(conf$range.id)
+  }
+
   for (n in extra.args) {
     conf[n@dest] <- opts[n@dest]
   }

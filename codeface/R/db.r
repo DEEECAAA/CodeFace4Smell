@@ -150,18 +150,36 @@ get.range.id <- function(conf, tag.start, tag.end) {
 
 # Get release and release candidate dates for a given project
 get.release.rc.dates <- function(conf) {
+  loginfo(str_c("DEBUG PID=", conf$pid))
+
   res <- dbGetQuery(conf$con,
                     str_c("SELECT * FROM release_timeline WHERE projectId=",
-                          conf$pid, sep=""))
+                          conf$pid, sep = ""))
+
+  # Se non ci sono risultati, ritorna un data.frame vuoto
+  if (nrow(res) == 0) {
+    logwarn(str_c("No release_timeline entries for projectId=", conf$pid))
+    return(data.frame())
+  }
+
+  # Verifica che esistano le colonne attese
+  if (!"type" %in% colnames(res)) {
+    logwarn("Missing 'type' column in release_timeline. Returning empty.")
+    return(data.frame())
+  }
+
+  if (!"date" %in% colnames(res)) {
+    logwarn("Missing 'date' column in release_timeline. Creating NA.")
+    res$date <- NA
+  }
+
   res$type <- as.factor(res$type)
 
-  ## When no rc dates are available yet, all entries of res$date
-  ## are NAs -- in which case ymd_hms will throw an error, so we need
-  ## to skip trying to convert the vector. If there's at least one
-  ## valie date entry included, ymd_hms will happily convert the
-  ## NAs to NAs.
-  if (sum(is.na(res$date)) != length(res$date)) {
-    res$date <- ymd_hms(res$date, quiet=TRUE)
+  # Gestione robusta dei timestamp
+  if (!all(is.na(res$date))) {
+    suppressWarnings({
+      res$date <- ymd_hms(res$date, quiet = TRUE)
+    })
   }
 
   return(res)
@@ -170,8 +188,8 @@ get.release.rc.dates <- function(conf) {
 ## Get release dates (without release candidates) for a given project
 get.release.dates <- function(conf) {
   res <- get.release.rc.dates(conf)
-  res <- res[res$type=="release",]
-
+  if (nrow(res) == 0) return(data.frame())  # se vuoto, ritorna vuoto
+  res <- res[res$type == "release",]
   return(res)
 }
 
