@@ -181,7 +181,7 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
         cmd.extend(("-p", project_conf))
         cmd.extend(("-j", str(n_jobs)))
         cmd.append(repo)
-        cmd.append(str(range_id))
+        cmd.append(str(project_id))
         execute_command(cmd, direct_io=True, cwd=cwd)
 
     #########

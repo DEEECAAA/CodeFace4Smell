@@ -135,7 +135,7 @@ txt.comm.subsys <- function(.comm, .id.subsys, i) {
 
 get.rank.by.field <- function(.iddb, .field, N=dim(.iddb)[1]) {
   res <- .iddb[c("ID", "Name", .field)]
-  res <- res[order(res[c(.field)], decreasing=TRUE),]
+  res <- res[order(res[[.field]], decreasing=TRUE),]
   s <- sum(res[,3])
   res <- cbind(res, data.frame(percent=res[,3]/s*100))
   res <- cbind(res, data.frame(norm=scale.data(res[,3], 0, 1)))
@@ -661,7 +661,7 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
   ## so ncol() won't work any more in this case. Ensure that we are actually
   ## working with a matrix before explicitely setting the row and column
   ## names to consecutive numbers.
-  if (class(subset) == "matrix") {
+  if (length(class(subset)) == 1 && class(subset) == "matrix") {
     rownames(subset) <- 1:ncol(subset)
     colnames(subset) <- 1:ncol(subset)
   }
@@ -687,17 +687,24 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
   ## to thick with the number of commits
   V(g)$penwidth <- as.character(scale.data(log(.iddb$numcommits+1),1,5)[idx])
 
-  if(!is.na(label)) {
+  if (length(label) == 1 && !is.na(label)) {
     g$label <- label
     g$fontsize <- 30
   }
 
   if (!is.null(.filename)) {
-    ## Scale edge weights, extremely large weights will cause graphviz to
-    ## fail during rendering
-    g.scaled <- g
-    E(g.scaled)$weights <- scale.data(log(E(g.scaled)$weights + 1), 0, 100)
-    
+  g.scaled <- g
+  if (ecount(g.scaled) > 0 && length(E(g.scaled)$weight) > 0) {
+    scaled_weights <- log(E(g.scaled)$weight + 1)
+    if (all(is.finite(scaled_weights))) {
+      E(g.scaled)$weights <- scale.data(scaled_weights, 0, 100)
+    } else {
+      logwarn("Non-finite weights encountered during scaling")
+      E(g.scaled)$weights <- rep(0, ecount(g.scaled))  # or skip setting entirely
+    }
+  } else {
+    loginfo("Graph has no edges or weights; skipping weight scaling.")
+  }
     write.graph(g.scaled, .filename, format="dot")
   }
 
