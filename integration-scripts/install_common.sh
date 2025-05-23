@@ -14,7 +14,7 @@ sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
   python3-lxml gcc libpoppler-dev libpoppler-glib-dev libx11-dev libglu1-mesa-dev \
   libgles2-mesa-dev xorg-dev screen
 
-# Pulizia pacchetti duplicati o obsoleti rimossi
+# Pulizia pacchetti duplicati o obsoleti
 
 echo "Installing universal-ctags from source"
 sudo apt-get install -y autoconf automake pkg-config libseccomp-dev libjansson-dev \
