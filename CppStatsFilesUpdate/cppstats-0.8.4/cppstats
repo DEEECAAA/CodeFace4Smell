@@ -1,0 +1,3 @@
+#!/bin/bash
+cd "/home/vagrant/vendor/cppstats-0.8.4"
+PYTHONPATH="$PYTHONPATH:/home/vagrant/vendor/cppstats-0.8.4/lib" ./cppstats.py "$@"

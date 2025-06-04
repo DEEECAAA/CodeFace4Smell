@@ -1,0 +1,8 @@
+tmp
+*.pyc
+*.orig
+*.bak
+*.swp
+*.swo
+cppstats_input.txt
+log
