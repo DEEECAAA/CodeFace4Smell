@@ -370,6 +370,12 @@ def get_example_feature_project_3(tagging="tag"):
     simple examples).
     '''
     project = GitProject(tagging)
+    project._forceSaveAll = True  # forza salvataggio anche se la matrice è vuota
+    project.subsys_description = {
+        "src/code.c": "core",
+        "src/carp.c": "network",
+        "src/ui/button.c": "ui"
+    }
     Adam = project.add_author("Adam Awkward", "adam@awkward.net")
     Bill = project.add_author("Bill Bully", "bill@bullies.org")
     Clara = project.add_author("Clara Confident", "clara@foo.org")
@@ -581,35 +587,84 @@ int main() { // Adam
             },
             signoff=[Adam, Max, Geoff])
 
+    # Commit iniziale di Geoff su più file
     project.commit(Geoff, Geoff, "2013-01-21T12:50:42",
-            {"src/code.c":'''\
-int main() { // Adam
- int a; // Adam
-#if (defined(C)) // Adam
- int b = 1; // Max
-#endif // Adam
-#if (defined(A)) // Adam
- int c = 2; // Clara
-#elif (defined(B)) // Adam
- int c = 3; // Clara
-#else // Adam
- int c = 4; // Clara
-#endif // Adam
- int d = 0; // Adam
- return 1; // Adam
-}; // Adam''',
-            "src/carp.c":'''\
-int main() { // Adam
- int a; // Adam
-#if (defined(A) || defined(B)) // Peter
- int b = 6; // Geoff
-#endif // Adam
- int c = 1; // Geoff
- return 1; // Louie
-}; // Adam'''
-            },
-            signoff=[Adam, Max, Geoff])
-    ## Release 2
+                   {
+                       "src/code.c": '''\
+    // Adam
+    int main() {
+     int a;
+    #if (defined(C))
+     int b = 1; // Max
+    #endif
+    #if (defined(A))
+     int c = 2; // Clara
+    #elif (defined(B))
+     int c = 3; // Clara
+    #else
+     int c = 4; // Clara
+    #endif
+     int d = 0;
+     return 1;
+    };''',
+
+                       "src/carp.c": '''\
+    // Adam
+    int main() {
+     int a;
+    #if (defined(A) || defined(B)) // Peter
+     int b = 6; // Geoff
+    #endif
+     int c = 1;
+     return 1; // Louie
+    };''',
+
+                       "src/ui/button.c": '''\
+    // Clara
+    void render_button() {
+     int pressed = 0;
+    }'''
+                   },
+                   signoff=[Adam, Max, Geoff]
+                   )
+
+    # Seconda commit: Clara modifica src/ui/button.c => collaborazione su "ui"
+    project.commit(Clara, Clara, "2013-01-22T10:00:00",
+                   {
+                       "src/ui/button.c": '''\
+    // Clara
+    void render_button() {
+     int pressed = 1;
+     int state = 1;
+    }'''
+                   },
+                   signoff=[Geoff, Clara]
+                   )
+
+    project.commit(Adam, Adam, "2013-01-23T12:00:00",
+                   {
+                       "src/ui/button.c": '''\
+    void render_button() {
+     int pressed = 1;
+     int state = 2;
+     int id = 42;
+    }'''
+                   },
+                   signoff=[Clara, Adam]
+                   )
+    # Clara e Adam modificano assieme più file di subsystem diversi
+    # Clara e Adam modificano lo stesso subsystem (ui), nello stesso file
+    project.commit(Clara, Adam, "2013-01-24T11:00:00",
+                   {
+                       "src/ui/button.c": '''\
+    // Clara
+    void render_button() {
+     int pressed = 1; // Adam
+     int state = 3; // Clara
+    }'''
+                   },
+                   signoff=[Clara, Adam])
+
     project.tag_release(Max, "2013-01-23T13:42:42")
     return project
 

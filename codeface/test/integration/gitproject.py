@@ -114,6 +114,13 @@ class GitProject(object):
                         next_release += 1
                     git(["tag", name])
 
+            # Applica i sottosistemi definiti
+            if hasattr(self, "_subsystems"):
+                subsys_path = pathjoin(self.directory, ".git", "subsystems.txt")
+                with open(subsys_path, "w") as f:
+                    for filepath, subsystem in self._subsystems.items():
+                        f.write(f"{filepath}\t{subsystem}\n")
+
             # Allineamento delle due liste
             rcs = [rc_tags.get(i, release_tags[i]) for i in range(len(release_tags))]
             if len(release_tags) != len(rcs):
@@ -224,3 +231,7 @@ class GitProject(object):
     def mbox_contents(self, mlist):
         return ("\n\n".join(self._mboxes.get(mlist, [])) + "\n\n").lstrip()
 
+    def assign_subsystem(self, filepath, subsystem):
+        if not hasattr(self, "_subsystems"):
+            self._subsystems = {}
+        self._subsystems[filepath] = subsystem

@@ -72,9 +72,10 @@ class Configuration(Mapping):
         c._conf.update(c._global_conf)
         if local_conffile:
             log.devinfo("Loading project configuration file '{}'".
-                    format(local_conffile))
-            self._project_conf = c._load(local_conffile)
+                        format(local_conffile))
+            c._project_conf = c._load(local_conffile)
             c._conf.update(c._project_conf)
+            c._conf_file_loc = local_conffile  # 👈 AGGIUNTA IMPORTANTE
         else:
             log.devinfo("Not loading project configuration file!")
         c._initialize()
@@ -176,6 +177,15 @@ class Configuration(Mapping):
 
     def get_conf_file_loc(self):
         return self._conf_file_loc
+
+    def to_file(self, filename):
+        '''
+        Write the current project configuration (local only) to the specified file
+        '''
+        with open(filename, "w") as f:
+            yaml.dump({k: self._conf[k] for k in self.PROJECT_KEYS + self.OPTIONAL_KEYS if k in self._conf},
+                      f,
+                      default_flow_style=False)
 
     # Function for the Configuration object to function as a dict
     def __getitem__(self, key):

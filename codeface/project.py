@@ -13,7 +13,7 @@
 #
 # Copyright 2013 by Siemens AG
 # All Rights Reserved.
-
+import os
 from logging import getLogger; log = getLogger(__name__)
 from pkg_resources import resource_filename
 from os.path import join as pathjoin, split as pathsplit, abspath
@@ -37,11 +37,13 @@ def project_setup(conf, recreate):
     for the ranges between the releases specified in the configuration.
     '''
     # Set up project in database and retrieve ranges to analyse
+    log.info("🔥 DEBUG: called project_setup with project='{}'".format(conf["project"]))
     log.info("=> Setting up project '{c[project]}'".format(c=conf))
     dbm = DBManager(conf)
     new_range_ids = dbm.update_release_timeline(conf["project"],
             conf["tagging"], conf["revisions"], conf["rcs"],
             recreate_project=recreate)
+    log.info("🔥 DEBUG: result of update_release_timeline: {}".format(new_range_ids))
     project_id = dbm.getProjectID(conf["project"], conf["tagging"])
     revs = conf["revisions"]
     all_range_ids = [dbm.getReleaseRangeID(project_id,
@@ -103,8 +105,12 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
     project_id, dbm, all_range_ids = project_setup(conf, recreate)
 
     ## Save configuration file
-    conf.write()
     project_conf = conf.get_conf_file_loc()
+    if project_conf is None:
+        project_conf = os.path.join(resdir, "generated_testproject.conf")
+        conf.to_file(project_conf)
+    else:
+        conf.to_file(project_conf)
 
     # Analyse new revision ranges
     for i, range_id in enumerate(all_range_ids):

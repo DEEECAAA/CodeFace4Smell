@@ -652,40 +652,37 @@ plot.group <- function(N, .tags, .iddb, .comm) {
 ## Given a single cluster of persons, construct an igraph object,
 ## compute some attributes for proper visualisation, and export the
 ## result as a graphviz dot format if a filename is provided.
-save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
-  ## Select the subset of the global graph that forms the community,
-  ## and ensure that the per-cluster indices range from 1..|V(g.cluster)|
+save.group <- function(conf, .tags, idx, .prank, .filename = NULL, label, iddb) {
   subset <- .tags[idx, idx]
 
-  ## A 1x1 matrix is not of class matrix, but of class numeric,
-  ## so ncol() won't work any more in this case. Ensure that we are actually
-  ## working with a matrix before explicitely setting the row and column
-  ## names to consecutive numbers.
+  # 🩹 Forza la struttura corretta di iddb
+  iddb <- as.data.frame(iddb)
+  iddb$ID <- as.numeric(iddb$ID)
+  iddb$total <- as.numeric(iddb$total)
+  iddb$numcommits <- as.numeric(iddb$numcommits)
+
   if (length(class(subset)) == 1 && class(subset) == "matrix") {
     rownames(subset) <- 1:ncol(subset)
     colnames(subset) <- 1:ncol(subset)
   }
 
-  g <- graph_from_adjacency_matrix(subset, mode="directed", weighted=TRUE)
+  g <- graph_from_adjacency_matrix(subset, mode = "directed", weighted = TRUE)
 
-  ## as.character is important. The igraph C export routines bark
-  ## otherwise (not sure what the actual issue is)
-  ## NOTE: V(g)$name as label index does NOT work because the name attribute
-  ## is _not_ stable.
-  V(g)$label <- as.character(IDs.to.names(.iddb, idx))
+  V(g)$label <- as.character(IDs.to.names(iddb, idx))
 
-  ## We also use the page rank to specify the font size of the vertex
-  V(g)$fontsize <- scale.data(.prank$vector, 15, 50)[idx]
+  ## 🛠️ Robust handling of .prank
+  prank_vector <- if (is.list(.prank) && !is.null(.prank$vector)) {
+    .prank$vector
+  } else {
+    .prank  # assume it's already a numeric vector
+  }
 
-  ## The amount of changed lines is visualised by the nodes background colour:
-  ## The darker, the more changes.
-  fc <- as.character(as.integer(100-scale.data(log(.iddb$total+1),0,50)[idx]))
-  V(g)$fillcolor <- paste("grey", fc, sep="")
-  V(g)$style="filled"
+  V(g)$fontsize <- scale.data(prank_vector, 15, 50)[idx]
 
-  ## And one more bit: The width of the bounding box changes from thin
-  ## to thick with the number of commits
-  V(g)$penwidth <- as.character(scale.data(log(.iddb$numcommits+1),1,5)[idx])
+  fc <- as.character(as.integer(100 - scale.data(log(iddb$total + 1), 0, 50)[idx]))
+  V(g)$fillcolor <- paste("grey", fc, sep = "")
+  V(g)$style <- "filled"
+  V(g)$penwidth <- as.character(scale.data(log(iddb$numcommits + 1), 1, 5)[idx])
 
   if (length(label) == 1 && !is.na(label)) {
     g$label <- label
@@ -693,19 +690,19 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
   }
 
   if (!is.null(.filename)) {
-  g.scaled <- g
-  if (ecount(g.scaled) > 0 && length(E(g.scaled)$weight) > 0) {
-    scaled_weights <- log(E(g.scaled)$weight + 1)
-    if (all(is.finite(scaled_weights))) {
-      E(g.scaled)$weights <- scale.data(scaled_weights, 0, 100)
+    g.scaled <- g
+    if (ecount(g.scaled) > 0 && length(E(g.scaled)$weight) > 0) {
+      scaled_weights <- log(E(g.scaled)$weight + 1)
+      if (all(is.finite(scaled_weights))) {
+        E(g.scaled)$weights <- scale.data(scaled_weights, 0, 100)
+      } else {
+        logwarn("Non-finite weights encountered during scaling")
+        E(g.scaled)$weights <- rep(0, ecount(g.scaled))
+      }
     } else {
-      logwarn("Non-finite weights encountered during scaling")
-      E(g.scaled)$weights <- rep(0, ecount(g.scaled))  # or skip setting entirely
+      loginfo("Graph has no edges or weights; skipping weight scaling.")
     }
-  } else {
-    loginfo("Graph has no edges or weights; skipping weight scaling.")
-  }
-    write.graph(g.scaled, .filename, format="dot")
+    write.graph(g.scaled, .filename, format = "dot")
   }
 
   return(g)
@@ -713,33 +710,57 @@ save.group <- function(conf, .tags, .iddb, idx, .prank, .filename=NULL, label) {
 
 
 ## Prepare graph data for database and insert
-store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, j) {
-  ## Construct a systematic representation of the graph for the data base
-  edges <- get.data.frame(g.reg, what="edges")
-  colnames(edges) <- c("fromId", "toId")
-  edges$fromId <- as.integer(edges$fromId)
-  edges$toId <- as.integer(edges$toId)
+store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, clusterNumber, releaseRangeId = conf$range.id) {
+  message("📥 Storing cluster to DB: ", baselabel, " [cluster=", clusterNumber, "]")
 
-  ## NOTE: Index handling is somewhat complicated: idx contains a set
-  ## of indices generated for the global graph. .iddx[index,]$ID.orig
-  ## maps these back to the in-DB indices.
-  ## V(g) for the current graph uses another different indexing system:
-  ## indices are 1..|V(g)|. To convert from the graph-local indices
-  ## to the graph-global ones, use idx[V(g)]. To convert these to in-DB
-  ## indices, use .iddb[idx[V(g)]]$ID.org.
+  ## Create and insert cluster entry
+  cluster.entry <- data.frame(
+    projectId = conf$pid,
+    releaseRangeId = releaseRangeId,
+    clusterNumber = clusterNumber,
+    label = baselabel
+  )
+  message("📝 cluster.entry:")
+  print(cluster.entry)
+  dbWriteTable(conf$con, "cluster", cluster.entry, append = TRUE, row.names = FALSE)
+  message("✅ cluster entry inserted")
 
-  edges$toId <- .iddb[idx[edges$toId],]$ID.orig
-  edges$fromId <- .iddb[idx[edges$fromId],]$ID.orig
+  ## Skip if graph is missing or invalid
+  if (is.null(g.reg) || inherits(g.reg, "try-error")) {
+    message("⚠️ Graph is NULL or errored — skipping edge list generation")
+    return(invisible(NULL))
+  }
 
-  ## Create a weighted edgelist, and associate it with the in-cluster
-  ## database id
-  if (dim(edges)[1] > 0) {
-    ## Only write an edge list if the cluster has any edges, actually
+  ## Attempt edge extraction
+  edges <- tryCatch(
+    get.data.frame(g.reg, what = "edges"),
+    error = function(e) {
+      message("⚠️ get.data.frame failed: ", e$message)
+      return(data.frame(fromId = integer(0), toId = integer(0)))
+    }
+  )
+
+  ## Only proceed if edges were found
+  if (nrow(edges) > 0 && ncol(edges) >= 2) {
+    colnames(edges)[1:2] <- c("fromId", "toId")
+
+    ## Defensive check to ensure index bounds are valid
+    max.idx <- max(idx, na.rm = TRUE)
+    if (any(edges$fromId > length(idx)) || any(edges$toId > length(idx))) {
+      message("⚠️ Edge indices out of bounds — skipping edge writing")
+      return(invisible(NULL))
+    }
+
+    edges$fromId <- .iddb[idx[edges$fromId], "ID.orig"]
+    edges$toId   <- .iddb[idx[edges$toId], "ID.orig"]
+
     edges <- gen.weighted.edgelist(edges)
-    write.graph.db(conf, conf$range.id, baselabel, edges, j)
+    write.graph.db(conf, releaseRangeId, baselabel, edges, clusterNumber)
+    message("✅ edge list written")
+  } else {
+    message("ℹ️ No edges to write for cluster ", clusterNumber)
   }
 }
-
 
 ## Iterate over all clusters in a community decomposition, create
 ## a graphviz input file (via save.groups), and also store the
@@ -839,53 +860,82 @@ save.cluster.stats.subsys <- function(.comm, .id.subsys, .elems,
   }
 }
 
-save.all <- function(conf, .tags, .iddb, .prank.list, .comm, .filename.base=NULL,
-                     label) {
-  g.all.reg <- save.group(conf, .tags, .iddb, .iddb$ID, .prank.list$reg,
-                          .filename=NULL, label=NA)
-  g.all.tr <- save.group(conf, .tags, .iddb, .iddb$ID, .prank.list$tr,
-                         .filename=NULL, label=NA)
+save.all <- function(conf, .tags, .iddb, .prank.list, .comm,
+                     .filename.base = NULL, label, idx = NULL,
+                     releaseRangeId = conf$range.id) {
 
-  ## NOTE: The all-in-one graphs get a different suffix (ldot for "large
-  ## dot") so that we can easily skip them when batch-processing graphviz
-  ## images -- they take a long while to compute
+  # 🛠️ Fix columns to avoid "invalid subscript type 'list'"
+  .iddb <- as.data.frame(.iddb)
+  .iddb$ID <- as.numeric(.iddb$ID)
+  .iddb$total <- as.numeric(.iddb$total)
+  .iddb$numcommits <- as.numeric(.iddb$numcommits)
 
-  V(g.all.reg)$label <- .iddb$ID
+  if (is.null(idx)) {
+    idx <- seq_along(.iddb$ID)
+  }
+
+  # Wrap raw vectors into list with $vector field if needed
+  safe.prank <- function(p) {
+    if (is.list(p) && !is.null(p$vector)) return(p)
+    list(vector = p)
+  }
+
+  # Build graphs for both PageRank variants
+  g.all.reg <- save.group(conf, .tags, idx = as.numeric(.iddb$ID), .prank = safe.prank(.prank.list$reg),
+                        .filename = NULL, label = NA, iddb = .iddb)
+  g.all.tr  <- save.group(conf, .tags, idx = as.numeric(.iddb$ID), .prank = safe.prank(.prank.list$tr),
+                        .filename = NULL, label = NA, iddb = .iddb)
+
+  # Standard labels and colors
+  V(g.all.reg)$label    <- .iddb$ID
+  V(g.all.tr)$label     <- .iddb$ID
   V(g.all.reg)$pencolor <- V(g.all.reg)$fillcolor
+  V(g.all.tr)$pencolor  <- V(g.all.reg)$fillcolor
 
-  V(g.all.tr)$label <- .iddb$ID
-  V(g.all.tr)$pencolor <- V(g.all.reg)$fillcolor
-
-  elems <- unique(.comm$membership)
-  red <- as.integer(scale.data(0:(length(elems)+1), 0, 255))
-  ##  grey <- as.integer(scale.data(0:(length(elems)+1), 0, 99))
-  for (i in elems) {
-    idx <- as.vector(which(.comm$membership==i))
-
-    V(g.all.reg)[idx]$fillcolor <- col.to.hex("#", red[i+1], 0, 0)
-    V(g.all.tr)[idx]$fillcolor <- col.to.hex("#", red[i+1], 0, 0)
+  # Color by membership if available
+  if (!is.null(.comm$membership)) {
+    elems <- unique(.comm$membership)
+    red <- as.integer(scale.data(0:(length(elems) + 1), 0, 255))
+    for (i in elems) {
+      membership_idx <- which(.comm$membership == i)
+      col <- col.to.hex("#", red[i + 1], 0, 0)
+      V(g.all.reg)[membership_idx]$fillcolor <- col
+      V(g.all.tr)[membership_idx]$fillcolor <- col
+    }
   }
 
-  if (!is.na(label)) {
-    g.all.reg$label = label
-    g.all.tr$label = label
-
-    ## The global graph gets community index -1
-    idx <- 1:length(.iddb$ID) ## Select all elements
-    store.graph.db(conf, label, idx, .iddb, g.all.reg, g.all.tr, -1)
+  # Label fallback
+  if (is.na(label) || is.null(label)) {
+    label <- "Global Cluster"
   }
+  g.all.reg$label <- label
+  g.all.tr$label  <- label
 
+  # Save to DB
+  message("💾 Storing cluster -1: ", label, " [releaseRangeId=", releaseRangeId, "]")
+  store.graph.db(conf, label, idx, .iddb, g.all.reg, g.all.tr,
+                 clusterNumber = -1,
+                 releaseRangeId = releaseRangeId)
+
+  # Write Graphviz .dot files
   if (!is.null(.filename.base)) {
-    filename.reg <- paste(.filename.base, "reg_all.ldot", sep="")
-    filename.tr <- paste(.filename.base, "tr_all.ldot", sep="")
+    write.graph(g.all.reg, paste0(.filename.base, "reg_all.ldot"), format = "dot")
+    write.graph(g.all.tr,  paste0(.filename.base, "tr_all.ldot"),  format = "dot")
 
-    write.graph(g.all.reg, filename.reg, format="dot")
-    write.graph(g.all.tr, filename.tr, format="dot")
+    # Only save .ldot for community if it's not a dummy cluster
+    if (!is.null(.comm$membership) &&
+        length(unique(.comm$membership)) > 1 &&
+        is.character(label) &&
+        !is.na(label) &&
+        nzchar(label)) {
+
+      message("✅ Saving community graph: ", label)
+      save.graph.graphviz(conf$con, conf$pid, releaseRangeId, label,
+                          paste0(.filename.base, "community.ldot"))
+    } else {
+      message("ℹ️ Skipping save.graph.graphviz(): dummy or trivial cluster [", label, "]")
+    }
   }
-
-  ## Community visualization
-  filename.comm <- paste(.filename.base, "community.ldot", sep="")
-  save.graph.graphviz(conf$con, conf$pid, conf$range.id, label, filename.comm)
 }
 
 
@@ -980,52 +1030,84 @@ writePageRankData <- function(conf, outdir, .iddb, devs.by.pr, devs.by.pr.tr) {
 #########################################################################
 
 performAnalysis <- function(outdir, conf) {
+  ################## Preprocess: force correct range.id #################
+  message("📌 DEBUG: conf$pid = ", conf$pid)
+  message("📌 DEBUG: conf$range.id = ", conf$range.id)
+  args <- commandArgs(trailingOnly = TRUE)
+  original_range_id <- as.numeric(args[length(args)])
+  conf$range.id <- original_range_id
+  message("🔥 conf$range.id set to ", conf$range.id)
+
   ################## Process the data #################
-  logdevinfo("Reading files", logger="cluster.persons")
-  mat.file <- paste(outdir, "/adjacencyMatrix.txt", sep="")
-  adjMatrix <- read.table(mat.file, sep="\t", header=TRUE)
-  adjMatrix.ids <- unlist(strsplit(readLines(mat.file, n=1), "\t"))
+  logdevinfo("Reading files", logger = "cluster.persons")
+  mat.file <- paste(outdir, "/adjacencyMatrix.txt", sep = "")
+  adjMatrix <- read.table(mat.file, sep = "\t", header = TRUE)
+  adjMatrix.ids <- unlist(strsplit(readLines(mat.file, n = 1), "\t"))
 
   colnames(adjMatrix) <- rownames(adjMatrix)
-
-  ## The adjacency matrix file format uses a different convention for edge
-  ## direction than GNU R, so we need to transpose the matrix
-  adjMatrix <- t(adjMatrix)
+  adjMatrix <- t(adjMatrix)  # Transpose for R convention
 
   ids.db <- get.range.stats(conf$con, conf$range.id)
+  assign(".iddb", ids.db, envir = .GlobalEnv)  # 🔥 Required for save.group()
 
-  ## Check that ids are in correct order, the ids queried from the
-  ## db are not necessarily in the same order as the adjacency matrix
-  ## columns. Here we remap ids to the correct order.
-  remapping <- unlist(lapply(adjMatrix.ids, function(id) {which(id == ids.db$ID)}))
-  ids <- ids.db[remapping,]
-  if(!all(ids$ID==adjMatrix.ids)) {
-      logerror("Id mismatch", logger="cluster.persons")
+  remapping <- unlist(lapply(adjMatrix.ids, function(id) which(id == ids.db$ID)))
+  ids <- ids.db[remapping, ]
+  if (!all(ids$ID == adjMatrix.ids)) {
+    logerror("Id mismatch", logger = "cluster.persons")
   }
 
-  id.subsys <- read.csv(file=paste(outdir, "/id_subsys.txt", sep=""),
-			sep="\t", header=TRUE)
+  id.subsys <- read.csv(paste(outdir, "/id_subsys.txt", sep = ""), sep = "\t", header = TRUE)
   id.subsys$ID <- id.subsys$ID + 1
-
-  ## If there are only two column names (ID and general), then
-  ## the project is not equipped with an explicit subsystem
-  ## description.
   if (length(colnames(id.subsys)) == 2) {
     id.subsys <- NULL
   }
-  
-  ## Get off diagonal sum  
-  mat.diag <- diag(adjMatrix) 
+
+  ## Check if adjacency matrix is empty (excluding diagonal)
+  mat.diag <- diag(adjMatrix)
   diag(adjMatrix) <- 0
   non.diag.sum <- sum(adjMatrix)
   diag(adjMatrix) <- mat.diag
 
-  if(sum(non.diag.sum) == 0) {
-    loginfo("Adjacency matrix empty, exiting cluster analysis", logger="cluster.persons")
-    return(1)
-  } else {
-    performGraphAnalysis(conf, adjMatrix, ids, outdir, id.subsys)
+  if (non.diag.sum == 0) {
+    loginfo("⚠️ Adjacency matrix empty — forcing dummy cluster", logger = "cluster.persons")
+
+    ids$ID.orig <- ids$ID
+    ids$ID <- seq_len(nrow(ids))
+    ids$Name <- as.character(ids$Name)
+
+    pr.for.all <- rep(0, nrow(ids))
+    pr.for.all.tr <- rep(0, nrow(ids))
+    prank.list <- list(reg = pr.for.all, tr = pr.for.all.tr)
+    dummy_comm <- list(membership = rep(1, nrow(ids)))
+    idx.global <- ids$ID.orig
+
+    # Save dummy cluster
+    save.all(conf, adjMatrix, ids, prank.list, dummy_comm,
+             paste(outdir, "/dummy_", sep = ""),
+             label = "Dummy Cluster", idx = idx.global,
+             releaseRangeId = original_range_id)
+
+    # Save global cluster (-1)
+    save.all(conf, adjMatrix, ids, prank.list,
+             list(membership = rep(1, nrow(ids))),
+             paste(outdir, "/global_", sep = ""),
+             label = "Global (Forced)", idx = idx.global,
+             releaseRangeId = original_range_id)
+
+    return(0)
   }
+
+  ################## Standard analysis #################
+  performGraphAnalysis(conf, adjMatrix, ids, outdir, id.subsys)
+
+  ## 🔥 Fallback: ensure global cluster is stored also in the standard path
+  idx.global <- ids$ID
+  prank.list <- list(reg = rep(1, length(ids$ID)), tr = rep(1, length(ids$ID)))
+  save.all(conf, adjMatrix, ids, prank.list,
+           list(membership = rep(1, length(ids$ID))),
+           paste(outdir, "/global_", sep = ""),
+           label = "Global (Forced)", idx = idx.global,
+           releaseRangeId = original_range_id)
 }
 
 writeClassicalStatistics <- function(outdir, ids.connected) {
@@ -1081,139 +1163,144 @@ detect.communities <- function(g, ids, adjMatrix, prank.list, outdir,
 }
 
 
-performGraphAnalysis <- function(conf, adjMatrix, ids, outdir, id.subsys=NULL){
+performGraphAnalysis <- function(conf, adjMatrix, ids, outdir, id.subsys = NULL) {
   ##====================================
   ##     Find Connected Subgraphs
   ##====================================
-  ## Scale edge weights to integer values
-  ## adjMatrix <- ceiling(scale.data(adjMatrix, 0, 1000))
-
-  ## Remove loops
-  ## Loops indicate a nodes collaboration with iteself, this
-  ## information could be used to identify isolated hero developers by looking
-  ## at the relative collaboration with others vs. their loop edge weight.
-  ## At this point we have no use for loops and the large edge weight of loops
-  ## leads to additional challenges in the analysis and visualization. For
-  ## now we will just remove the loops.
   n <- ncol(adjMatrix)
   adjMatrix <- adjMatrix * abs(diag(1, n, n) - 1)
 
-  logdevinfo("Computing adjacency matrices", logger="cluster.persons")
-  g <- graph_from_adjacency_matrix(adjMatrix, mode="directed", weighted=TRUE)
+  logdevinfo("Computing adjacency matrices", logger = "cluster.persons")
+  g <- graph_from_adjacency_matrix(adjMatrix, mode = "directed", weighted = TRUE)
   idx <- V(g)
 
-  ## Working with the adjacency matrices is easier if the IDs are numbered
-  ## consecutively. We need to be able to map the consecutive (local) ids
-  ## back to the (global) ids used in the data base later on, so keep
-  ## a mapping by storing a copy in ID.orig.
+  message("🔢 Number of nodes: ", length(idx))
+  message("📋 ID list:")
+  print(ids)
+
   ids$ID.orig <- ids$ID
-  ids$ID=seq(1:length(idx))
+  ids$ID <- seq(1, length(idx))
   ids$Name <- as.character(ids$Name)
 
   if (!is.null(id.subsys)) {
-    id.subsys <- id.subsys[idx,]
-    id.subsys$ID=seq(1:length(idx))
+    message("📌 Subsystem info provided")
+    id.subsys <- id.subsys[idx, ]
+    id.subsys$ID <- seq(1, length(idx))
   }
 
   V(g)$label <- as.character(ids$Name)
 
-  ## TODO: Include computing classical statistics from performTagAnalysis
-
   ##========================
   ##  Page rank analysis
   ##========================
+  logdevinfo("Computing page rank", logger = "cluster.persons")
+  pr.for.all <- compute.pagerank(adjMatrix, transpose = TRUE, weights = TRUE)
+  pr.for.all.tr <- compute.pagerank(adjMatrix, .damping = 0.3, weights = TRUE)
 
-  ## Compute the page ranking for all developers in the database
-  logdevinfo("Computing page rank", logger="cluster.persons")
-  ## This puts the focus on tagging other persons
-  pr.for.all <- compute.pagerank(adjMatrix, transpose=TRUE,
-                                 weights=TRUE)
-  ## ... and this on being tagged.
-  pr.for.all.tr <- compute.pagerank(adjMatrix, .damping=0.3,
-                                    weights=TRUE)
+  if (!is.numeric(pr.for.all) || anyNA(pr.for.all) || length(pr.for.all) != nrow(ids)) {
+    message("⚠️ Invalid page rank vector detected (reg) — fallback to 1")
+    pr.for.all <- rep(1, nrow(ids))
+  }
+  if (!is.numeric(pr.for.all.tr) || anyNa(pr.for.all.tr) || length(pr.for.all.tr) != nrow(ids)) {
+    message("⚠️ Invalid page rank vector detected (tr) — fallback to 1")
+    pr.for.all.tr <- rep(1, nrow(ids))
+  }
 
-  ## NOTE: pr.for.all$value should be one, but is 0.83 for some
-  ## reason. This seems to be a documentation bug, though:
-  ## https://bugs.launchpad.net/igraph/+bug/526106
-  devs.by.pr <- influential.developers(NA, pr.for.all, adjMatrix,
-                                       ids)
+  .prank.list <- list(reg = pr.for.all, tr = pr.for.all.tr)
+  message("📈 PageRank (reg):")
+  print(pr.for.all)
+  message("📈 PageRank (tr):")
+  print(pr.for.all.tr)
 
-  devs.by.pr.tr <- influential.developers(NA, pr.for.all.tr,
-                                          adjMatrix, ids)
-
-  ##-----------
-  ##save data
-  ##-----------
+  ##========================
+  ## Save developer rankings
+  ##========================
+  devs.by.pr <- influential.developers(NA, pr.for.all, adjMatrix, ids)
+  devs.by.pr.tr <- influential.developers(NA, pr.for.all.tr, adjMatrix, ids)
   writePageRankData(conf, outdir, ids, devs.by.pr, devs.by.pr.tr)
 
-  logdevinfo("Computing classical statistics", logger="cluster.persons")
+  logdevinfo("Computing classical statistics", logger = "cluster.persons")
   writeClassicalStatistics(outdir, ids)
 
-  ## Parameters for removing too small communities; see select.communities
-  ## for details (TODO: Should we make this configurable?)
-  MIN.CUT.FRACTION <- 0.95
-  MAX.CUT.SIZE <- 10
+  ##-----------------------
+  ## Save graphs to DB
+  ##-----------------------
+  logdevinfo("Writing the all-developers graph sources", logger = "cluster.persons")
+  idx.global <- ids$ID.orig
+  rrid <- conf$range.id
+  if (!is.null(attr(conf, "forced_range_id"))) {
+    message("⚠️ Overriding releaseRangeId with forced value")
+    rrid <- attr(conf, "forced_range_id")
+  }
+  message("🔥 DEBUG: Saving Global cluster for releaseRangeId = ", rrid)
+
+  message("🧮 idx.global (original IDs):")
+  print(idx.global)
+  message("🗂️  Release range ID: ", rrid)
+
+  if (nrow(adjMatrix) == 0 || sum(adjMatrix) == 0) {
+    message("⚠️ Adjacency matrix empty — forcing dummy cluster entry")
+
+    .prank.list <- list(
+      reg = rep(1, nrow(ids)),
+      tr  = rep(1, nrow(ids))
+    )
+
+    dummy_comm <- list(membership = rep(1, nrow(ids)))
+
+    ## Salva dummy cluster
+    message("💾 Saving dummy cluster...")
+    save.all(conf, adjMatrix, ids, .prank.list,
+             dummy_comm,
+             paste(outdir, "/dummy_", sep = ""),
+             label = "Dummy Cluster", idx = idx.global, releaseRangeId = rrid)
+
+    ## 🔥 Salva cluster globale forzato anche nel ramo dummy
+    message("✅ Forcing global cluster entry (-1) in dummy branch")
+    save.all(conf, adjMatrix, ids, .prank.list,
+             list(membership = rep(1, length(ids$ID))),
+             paste(outdir, "/global_", sep = ""),
+             label = "Global (Forced)", idx = idx.global, releaseRangeId = rrid)
+
+    return(invisible(NULL))
+  }
+
   ##=======================
   ## Find Communities
   ##=======================
-  ## NOTE: We don't use weighted graphs because not all clustering algorithms
-  ## support these; they weights are implicitly given by repeated edges in
-  ## any case.
+  MIN.CUT.FRACTION <- 0.95
+  MAX.CUT.SIZE <- 10
 
-  ## Scale the weight in the adjacency matrix for propers visualization
-  ## graphviz requires integer edge weights adjMatrix.connected.scaled =
-  ## round( scale.data(adjMatrix.connected, 0, 1000) )
-
-  ##--------------------
-  ##infomap
-  ##--------------------
-  ##g.infomap.community <- infomap.community(g.connected)
-  ##g.walktrap.community <- infomap.community(g.connected)
-
-  logdevinfo("Inferring communities with spin glasses", logger="cluster.persons")
-  g.spin.community <- detect.communities(g, ids,
-                                         adjMatrix,
-                                         list(reg=pr.for.all, tr=pr.for.all.tr),
+  logdevinfo("Inferring communities with spin glasses", logger = "cluster.persons")
+  g.spin.community <- detect.communities(g, ids, adjMatrix,
+                                         .prank.list,
                                          outdir, "sg_", "Spin Glass Community",
                                          MIN.CUT.FRACTION, MAX.CUT.SIZE,
                                          spinglass.community.connected)
 
-  logdevinfo("Inferring communities with random walks", logger="cluster.persons")
-  g.walktrap.community <- detect.communities(g, ids,
-                                             adjMatrix,
-                                             list(reg=pr.for.all, tr=pr.for.all.tr),
+  logdevinfo("Inferring communities with random walks", logger = "cluster.persons")
+  g.walktrap.community <- detect.communities(g, ids, adjMatrix,
+                                             .prank.list,
                                              outdir, "wt_", "Random Walk Community",
                                              MIN.CUT.FRACTION, MAX.CUT.SIZE,
                                              walktrap.community)
 
-  ##--------------------
-  ## Community Quality
-  ##--------------------
-  ## TODO: Export the quality data somewhere
-  if (FALSE) {
-    sg.quality.modularity  <- compute.all.community.quality(g.connected, g.spin.community, "modularity")
-    sg.quality.conductance <- compute.all.community.quality(g.connected, g.spin.community, "conductance")
-    sg.quality.modularization <- compute.all.community.quality(g.connected, g.spin.community, "modularization")
-    wt.quality.modularity  <- compute.all.community.quality(g.connected, g.walktrap.community, "modularity")
-    wt.quality.conductance <- compute.all.community.quality(g.connected, g.walktrap.community, "conductance")
-    wt.quality.modularization <- compute.all.community.quality(g.connected, g.walktrap.community, "modularization")
-  }
+  message("💾 Saving spin glass community...")
+  save.all(conf, adjMatrix, ids, .prank.list, g.spin.community,
+           paste(outdir, "/sg_", sep = ""),
+           label = "Spin Glass Community", idx = idx.global, releaseRangeId = rrid)
 
-  ##------------------
-  ## Write other data
-  ##-----------------
-  logdevinfo("Writing the all-developers graph sources", logger="cluster.persons")
+  message("💾 Saving walktrap community...")
+  save.all(conf, adjMatrix, ids, .prank.list, g.walktrap.community,
+           paste(outdir, "/wt_", sep = ""),
+           label = "Random Walk Community", idx = idx.global, releaseRangeId = rrid)
 
-  save.all(conf, adjMatrix, ids,
-           list(reg=pr.for.all, tr=pr.for.all.tr),
-           g.spin.community,
-           paste(outdir, "/sg_", sep=""),
-           label="Spin Glass Community")
-  save.all(conf, adjMatrix, ids,
-           list(reg=pr.for.all, tr=pr.for.all.tr),
-           g.walktrap.community,
-           paste(outdir, "/wt_", sep=""),
-           label="Random Walk Community")
+  ## Cluster globale (-1) sempre salvato
+  message("✅ Forcing global cluster entry (-1)")
+  save.all(conf, adjMatrix, ids, .prank.list,
+           list(membership = rep(1, length(ids$ID))),
+           paste(outdir, "/global_", sep = ""),
+           label = "Global (Forced)", idx = idx.global, releaseRangeId = rrid)
 }
 
 

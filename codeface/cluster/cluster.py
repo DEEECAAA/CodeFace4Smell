@@ -1147,9 +1147,10 @@ def writeSubsysPerAuthorData2File(id_mgr, outdir):
         for subsys in id_mgr.getSubsysNames() + ["general"]:
             outstr += "\t{0}".format(subsys_fraction[subsys])
         lines.append(outstr)
-    out = open(os.path.join(outdir, "id_subsys.txt"), 'w')
-    out.writelines(lines)
-    out.close()
+    with open(os.path.join(outdir, "id_subsys.txt"), 'w') as out:
+        for line in lines:
+            out.write(line.rstrip() + '\n')  # rimuove \n esistenti e ne aggiunge uno corretto
+
 
 def writeIDwithCmtStats2File(id_mgr, outdir, releaseRangeID, dbm, conf):
     '''

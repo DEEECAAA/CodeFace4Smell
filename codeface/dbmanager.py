@@ -223,10 +223,12 @@ class DBManager:
 
         Returns true if the project had to be recreated.
         '''
+        log.info("🔥 DEBUG: update_release_timeline() called for project=%s", project)
         assert len(revs) >= 2
         assert len(revs) == len(rcs)
         rcs = [rc if rc else rev for rc, rev in zip(rcs, revs)]
         pid = self.getProjectID(project, tagging)
+        log.info("🔥 DEBUG: projectId (pid) resolved as %s", pid)
 
         if not recreate_project:
             # First check if the release timeline is sane and in order
@@ -317,6 +319,7 @@ class DBManager:
             # all referencing entries for project
             log.warning("Deleting and re-creating project {}/{}.".
                     format(project, tagging))
+            log.info("🔥 DEBUG: Project deleted, now re-resolving pid")
             self.doExecCommit("DELETE FROM `project` WHERE id=%s", (pid,))
             pid = self.getProjectID(project, tagging)
             tags = []
@@ -332,12 +335,16 @@ class DBManager:
             if len(tags) > 0:
                 previous_rev = tags[-1]
             for rev, rc in list(zip(revs, rcs))[len(tags):]:
+                log.info("🔥 Inserting release tag=%s", rev)
+                log.info("🔥 Inserting RC tag=%s", rc)
                 self.doExecCommit("INSERT INTO release_timeline "
                                     "(type, tag, projectId) "
                                     "VALUES (%s, %s, %s)",
                                     ("release", rev, pid))
 
                 if previous_rev is not None and rc:
+                    log.info("🔥 Inserting release tag=%s", rev)
+                    log.info("🔥 Inserting RC tag=%s", rc)
                     self.doExecCommit("INSERT INTO release_timeline "
                                         "(type, tag, projectId) "
                                         "VALUES (%s, %s, %s)",
@@ -350,6 +357,7 @@ class DBManager:
                         rcID = self.getRCID(pid, rc)
                     else:
                         rcID = "NULL"
+                    log.info("🔥 Inserting release range from %s to %s (rc: %s)", previous_rev, rev, rc)
                     self.doExecCommit("INSERT INTO release_range "
                                         "(releaseStartId, releaseEndId, "
                                         "projectId, releaseRCStartId) "

@@ -250,6 +250,23 @@ class TestEndToEnd(object):
        self.p = example_project_func[self.example_project](self.tagging)
        with self.p:
             self.setup_with_p(self.p)
+
+            from codeface.project import project_analyse
+            project_analyse(
+                resdir=self.resdir,
+                gitdir=self.gitdir,
+                codeface_conf=self.codeface_conf,
+                project_conf=self.project_conf,
+                no_report=self.no_report,
+                loglevel=self.loglevel,
+                logfile=self.logfile,
+                recreate=True,
+                profile_r=False,
+                n_jobs=1,
+                tagging_type=self.tagging,
+                reuse_db=False
+            )
+
             self.clear_tables()
             self.analyseEndToEnd()
             #self.mlEndToEnd()
