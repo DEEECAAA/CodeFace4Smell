@@ -141,6 +141,7 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
         cmd.extend(("-p", project_conf))
         cmd.append(range_resdir)
         cmd.append(str(range_id))
+        cmd.append(str(project_id))
 
         s2 = pool.add(
                 execute_command,

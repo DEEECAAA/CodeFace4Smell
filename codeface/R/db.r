@@ -467,16 +467,33 @@ clusters.2.communities <- function(cluster.list, cluster.method, map) {
 
 ## Write graph data into the database
 write.graph.db <- function(conf, range.id, baselabel, edgelist, j) {
+  if (nrow(edgelist) == 0) {
+    logwarn("⚠️ Empty edge list — skipping write.graph.db", logger = "cluster.persons")
+    return()
+  }
+
   ## Get a unique cluster id
   cluster.id <- get.clear.cluster.id(conf, range.id, baselabel, j)
 
   ## Get all ids and write the user cluster mapping
   users <- unique(c(edgelist$fromId, edgelist$toId))
-  users.df <- data.frame(id=NA, personId=users, clusterId=cluster.id)
-  dbWriteTable(conf$con, "cluster_user_mapping", users.df, append=TRUE, row.names=FALSE)
+  if (length(users) == 0) {
+    logwarn("⚠️ No users to insert into cluster_user_mapping", logger = "cluster.persons")
+  } else {
+    users.df <- data.frame(id = NA, personId = users, clusterId = cluster.id)
+    dbWriteTable(conf$con, "cluster_user_mapping", users.df, append = TRUE, row.names = FALSE)
+  }
 
   ## Write edge list into database
-  edgelist <- cbind(clusterId=cluster.id, edgelist)
-  dbWriteTable(conf$con, "edgelist", edgelist, append=TRUE, row.names=FALSE)
+  edgelist <- cbind(clusterId = cluster.id, edgelist)
+  dbWriteTable(conf$con, "edgelist", edgelist, append = TRUE, row.names = FALSE)
+
   ## TODO: Insert the generated dot files into the database
+}
+
+get.range.ids.for.project <- function(con, pid) {
+  rs <- dbSendQuery(con, paste("SELECT id FROM release_range WHERE projectId =", pid))
+  data <- fetch(rs, n = -1)
+  dbClearResult(rs)
+  return(data$id)
 }

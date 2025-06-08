@@ -132,11 +132,14 @@ class DBManager:
         return self.doFetchAll()[0]
 
     def get_edgelist(self, cid):
-        self.doExec("SELECT fromId, toId, weight FROM edgelist \
-                    WHERE clusterId={}".format(cid))
+        # Prima controlla se il cluster esiste
+        self.doExec("SELECT id FROM cluster WHERE id={}".format(cid))
         if self.cur.rowcount == 0:
-            raise Exception("Cluster id {} not found!".format(cid))
-        return self.doFetchAll()
+            raise Exception("Cluster id {} does not exist in table 'cluster'.".format(cid))
+
+        # Poi recupera gli edge
+        self.doExec("SELECT fromId, toId, weight FROM edgelist WHERE clusterId={}".format(cid))
+        return self.doFetchAll()  # Può essere lista vuota, ed è OK
 
     def get_release_ranges(self, project_id):
         self.doExec("SELECT id FROM release_range \

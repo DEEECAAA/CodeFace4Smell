@@ -50,6 +50,10 @@ source("../query.r", chdir=TRUE)
 source("community_metrics.r")
 source("network_visualization.r")
 
+
+# ✅ Estrai l'ultimo argomento passato da commandArgs: rrid
+args <- commandArgs(trailingOnly = TRUE)
+rrid <- suppressWarnings(as.numeric(tail(args, 1)))
 #######################################################################
 ##		Lower Level Functions
 #######################################################################
@@ -705,58 +709,79 @@ save.group <- function(conf, .tags, idx, .prank, .filename = NULL, label, iddb) 
     write.graph(g.scaled, .filename, format = "dot")
   }
 
+  message("Built graph with ", vcount(g), " nodes and ", ecount(g), " edges")
   return(g)
 }
 
 
 ## Prepare graph data for database and insert
-store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, clusterNumber, releaseRangeId = conf$range.id) {
-  message("📥 Storing cluster to DB: ", baselabel, " [cluster=", clusterNumber, "]")
+store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, clusterNumber, releaseRangeId = NULL) {
+  if (is.null(releaseRangeId)) {
+    releaseRangeId <- conf$range.id
+  }
+
+  # Sanitize baselabel
+  if (is.null(baselabel) || length(baselabel) == 0) {
+    baselabel <- ""
+  }
+
+  message("💾 Storing cluster to DB: ", baselabel, " [cluster=", clusterNumber, "]")
 
   ## Create and insert cluster entry
   cluster.entry <- data.frame(
     projectId = conf$pid,
     releaseRangeId = releaseRangeId,
     clusterNumber = clusterNumber,
-    label = baselabel
+    label = as.character(baselabel),
+    stringsAsFactors = FALSE
   )
   message("📝 cluster.entry:")
   print(cluster.entry)
-  dbWriteTable(conf$con, "cluster", cluster.entry, append = TRUE, row.names = FALSE)
-  message("✅ cluster entry inserted")
 
-  ## Skip if graph is missing or invalid
+  dbWriteTable(conf$con, "cluster", cluster.entry, append = TRUE, row.names = FALSE)
+  message("✅ Cluster entry inserted into database")
+
+  ## Skip if graph is missing or errored
   if (is.null(g.reg) || inherits(g.reg, "try-error")) {
     message("⚠️ Graph is NULL or errored — skipping edge list generation")
     return(invisible(NULL))
   }
 
   ## Attempt edge extraction
-  edges <- tryCatch(
-    get.data.frame(g.reg, what = "edges"),
-    error = function(e) {
-      message("⚠️ get.data.frame failed: ", e$message)
-      return(data.frame(fromId = integer(0), toId = integer(0)))
-    }
-  )
+  edges <- tryCatch({
+    message(paste("📊 g.reg has", vcount(g.reg), "vertices and", ecount(g.reg), "edges"))
+    get.data.frame(g.reg, what = "edges")
+  }, error = function(e) {
+    message("⚠️ get.data.frame failed: ", e$message)
+    return(data.frame(fromId = integer(0), toId = integer(0)))
+  })
 
-  ## Only proceed if edges were found
+  ## Validate extracted edge list
   if (nrow(edges) > 0 && ncol(edges) >= 2) {
+    message("✅ Edges extracted successfully:")
+    print(edges)
     colnames(edges)[1:2] <- c("fromId", "toId")
 
-    ## Defensive check to ensure index bounds are valid
-    max.idx <- max(idx, na.rm = TRUE)
+    # Ensure edge indices are within bounds
     if (any(edges$fromId > length(idx)) || any(edges$toId > length(idx))) {
       message("⚠️ Edge indices out of bounds — skipping edge writing")
       return(invisible(NULL))
     }
 
+    # Remap IDs
     edges$fromId <- .iddb[idx[edges$fromId], "ID.orig"]
     edges$toId   <- .iddb[idx[edges$toId], "ID.orig"]
 
+    # Generate weighted edgelist
     edges <- gen.weighted.edgelist(edges)
-    write.graph.db(conf, releaseRangeId, baselabel, edges, clusterNumber)
-    message("✅ edge list written")
+
+    ## Write only if final edgelist has content
+    if (nrow(edges) > 0) {
+      write.graph.db(conf, releaseRangeId, baselabel, edges, clusterNumber)
+      message("✅ Weighted edge list written to DB")
+    } else {
+      message("ℹ️ Weighted edge list is empty — skipping write")
+    }
   } else {
     message("ℹ️ No edges to write for cluster ", clusterNumber)
   }
@@ -864,14 +889,20 @@ save.all <- function(conf, .tags, .iddb, .prank.list, .comm,
                      .filename.base = NULL, label, idx = NULL,
                      releaseRangeId = conf$range.id) {
 
+  message("📥 [save.all] Called with label = ", label, ", releaseRangeId = ", releaseRangeId)
+
   # 🛠️ Fix columns to avoid "invalid subscript type 'list'"
   .iddb <- as.data.frame(.iddb)
   .iddb$ID <- as.numeric(.iddb$ID)
   .iddb$total <- as.numeric(.iddb$total)
   .iddb$numcommits <- as.numeric(.iddb$numcommits)
+  message("✅ [save.all] .iddb converted and columns sanitized (ID, total, numcommits)")
 
   if (is.null(idx)) {
     idx <- seq_along(.iddb$ID)
+    message("ℹ️ [save.all] idx was NULL — defaulting to 1..n (", length(idx), " entries)")
+  } else {
+    message("ℹ️ [save.all] idx provided with ", length(idx), " entries")
   }
 
   # Wrap raw vectors into list with $vector field if needed
@@ -881,19 +912,22 @@ save.all <- function(conf, .tags, .iddb, .prank.list, .comm,
   }
 
   # Build graphs for both PageRank variants
+  message("🧠 [save.all] Building graphs with save.group()")
   g.all.reg <- save.group(conf, .tags, idx = as.numeric(.iddb$ID), .prank = safe.prank(.prank.list$reg),
-                        .filename = NULL, label = NA, iddb = .iddb)
+                          .filename = NULL, label = NA, iddb = .iddb)
   g.all.tr  <- save.group(conf, .tags, idx = as.numeric(.iddb$ID), .prank = safe.prank(.prank.list$tr),
-                        .filename = NULL, label = NA, iddb = .iddb)
+                          .filename = NULL, label = NA, iddb = .iddb)
 
   # Standard labels and colors
   V(g.all.reg)$label    <- .iddb$ID
   V(g.all.tr)$label     <- .iddb$ID
   V(g.all.reg)$pencolor <- V(g.all.reg)$fillcolor
   V(g.all.tr)$pencolor  <- V(g.all.reg)$fillcolor
+  message("🎨 [save.all] Node labels and pencolor set")
 
   # Color by membership if available
   if (!is.null(.comm$membership)) {
+    message("🧩 [save.all] Coloring graph by membership")
     elems <- unique(.comm$membership)
     red <- as.integer(scale.data(0:(length(elems) + 1), 0, 255))
     for (i in elems) {
@@ -902,23 +936,28 @@ save.all <- function(conf, .tags, .iddb, .prank.list, .comm,
       V(g.all.reg)[membership_idx]$fillcolor <- col
       V(g.all.tr)[membership_idx]$fillcolor <- col
     }
+  } else {
+    message("ℹ️ [save.all] No membership data provided — skip coloring")
   }
 
   # Label fallback
   if (is.na(label) || is.null(label)) {
     label <- "Global Cluster"
+    message("ℹ️ [save.all] Label missing — using fallback label 'Global Cluster'")
   }
+
   g.all.reg$label <- label
   g.all.tr$label  <- label
 
-  # Save to DB
-  message("💾 Storing cluster -1: ", label, " [releaseRangeId=", releaseRangeId, "]")
+  message("💾 Forcing cluster insert: ", label, " [releaseRangeId=", releaseRangeId, "]")
   store.graph.db(conf, label, idx, .iddb, g.all.reg, g.all.tr,
                  clusterNumber = -1,
                  releaseRangeId = releaseRangeId)
 
+
   # Write Graphviz .dot files
   if (!is.null(.filename.base)) {
+    message("📁 [save.all] Writing .dot files to: ", .filename.base)
     write.graph(g.all.reg, paste0(.filename.base, "reg_all.ldot"), format = "dot")
     write.graph(g.all.tr,  paste0(.filename.base, "tr_all.ldot"),  format = "dot")
 
@@ -929,12 +968,14 @@ save.all <- function(conf, .tags, .iddb, .prank.list, .comm,
         !is.na(label) &&
         nzchar(label)) {
 
-      message("✅ Saving community graph: ", label)
+      message("✅ [save.all] Saving community graph: ", label)
       save.graph.graphviz(conf$con, conf$pid, releaseRangeId, label,
                           paste0(.filename.base, "community.ldot"))
     } else {
-      message("ℹ️ Skipping save.graph.graphviz(): dummy or trivial cluster [", label, "]")
+      message("ℹ️ [save.all] Skipping save.graph.graphviz(): dummy or trivial cluster [", label, "]")
     }
+  } else {
+    message("ℹ️ [save.all] No output base path provided — skipping Graphviz export")
   }
 }
 
@@ -970,24 +1011,35 @@ compute.pagerank <- function(.tags, .damping=0.85, transpose=FALSE, weights=NULL
 
 
 
-## Determine the N most important developers (as per the
-## PageRank measure). This returns a list ordered by pagerank.
-## (Note that the raw pagerank data are given by compute.pagerank()
-## give the ranks ordered by ID)
+## Determine the N most important developers (as per the PageRank measure).
+## This returns a list ordered by pagerank.
+## (Note: the raw pagerank data are given by compute.pagerank())
+
 influential.developers <- function(N, .ranks, .tags, .iddb) {
+  if (!is.list(.ranks) || is.null(.ranks$vector)) {
+    warning("⚠️ Invalid PageRank vector detected — fallback to uniform dummy PageRank")
+    if (is.null(.iddb) || is.null(nrow(.iddb))) {
+      stop("❌ Cannot determine fallback PageRank: .iddb is missing or invalid.")
+    }
+    .ranks <- list(vector = rep(1, nrow(.iddb)))
+  }
+
   if (is.na(N)) {
     N <- length(.ranks$vector)
   }
 
-  idx = order(.ranks$vector, decreasing=TRUE)
-  idlst = seq(1,length(.ranks$vector))[idx[1:N]]
+  idx <- order(.ranks$vector, decreasing = TRUE)
+  idlst <- seq_len(length(.ranks$vector))[idx[1:N]]
 
-  res = data.frame(name=as.character(IDs.to.names(.iddb, idlst)), ID=idlst,
-    TagsGiven=sapply(idlst, function(.id) { tags.given(.id, .tags)}),
-    TagsReceived=sapply(idlst, function(.id) { tags.received(.id, .tags)}),
-    TagsGivenNoRep=sapply(idlst, function(.id) { tags.given.norep(.id, .tags)}),
-    TagsReceiveNoRep=sapply(idlst, function(.id) { tags.received.norep(.id, .tags)}),
-    rank = .ranks$vector[idx[1:N]])
+  res <- data.frame(
+    name = as.character(IDs.to.names(.iddb, idlst)),
+    ID = idlst,
+    TagsGiven = sapply(idlst, function(.id) tags.given(.id, .tags)),
+    TagsReceived = sapply(idlst, function(.id) tags.received(.id, .tags)),
+    TagsGivenNoRep = sapply(idlst, function(.id) tags.given.norep(.id, .tags)),
+    TagsReceiveNoRep = sapply(idlst, function(.id) tags.received.norep(.id, .tags)),
+    rank = .ranks$vector[idx[1:N]]
+  )
 
   return(res)
 }
@@ -1029,26 +1081,34 @@ writePageRankData <- function(conf, outdir, .iddb, devs.by.pr, devs.by.pr.tr) {
 ##     					 Main Functions
 #########################################################################
 
-performAnalysis <- function(outdir, conf) {
-  ################## Preprocess: force correct range.id #################
+performAnalysis <- function(outdir, conf, releaseRangeId = NULL) {
   message("📌 DEBUG: conf$pid = ", conf$pid)
   message("📌 DEBUG: conf$range.id = ", conf$range.id)
+
   args <- commandArgs(trailingOnly = TRUE)
   original_range_id <- as.numeric(args[length(args)])
-  conf$range.id <- original_range_id
+
+  # Se releaseRangeId non è stato passato esplicitamente, usa quello dagli argomenti
+  if (is.null(releaseRangeId)) {
+    releaseRangeId <- original_range_id
+  }
+
+  conf$range.id <- releaseRangeId
   message("🔥 conf$range.id set to ", conf$range.id)
 
-  ################## Process the data #################
   logdevinfo("Reading files", logger = "cluster.persons")
   mat.file <- paste(outdir, "/adjacencyMatrix.txt", sep = "")
   adjMatrix <- read.table(mat.file, sep = "\t", header = TRUE)
   adjMatrix.ids <- unlist(strsplit(readLines(mat.file, n = 1), "\t"))
 
   colnames(adjMatrix) <- rownames(adjMatrix)
-  adjMatrix <- t(adjMatrix)  # Transpose for R convention
+  adjMatrix <- t(adjMatrix)
 
   ids.db <- get.range.stats(conf$con, conf$range.id)
-  assign(".iddb", ids.db, envir = .GlobalEnv)  # 🔥 Required for save.group()
+  assign(".iddb", ids.db, envir = .GlobalEnv)
+
+  ## 🔥 Fix pid in case it's inconsistent with DB (solves FK error)
+  conf$pid <- unique(ids.db$projectId)
 
   remapping <- unlist(lapply(adjMatrix.ids, function(id) which(id == ids.db$ID)))
   ids <- ids.db[remapping, ]
@@ -1062,7 +1122,12 @@ performAnalysis <- function(outdir, conf) {
     id.subsys <- NULL
   }
 
-  ## Check if adjacency matrix is empty (excluding diagonal)
+  # Setup basic metadata
+  ids$ID.orig <- ids$ID
+  ids$ID <- seq_len(nrow(ids))
+  ids$Name <- as.character(ids$Name)
+  idx.global <- ids$ID.orig
+
   mat.diag <- diag(adjMatrix)
   diag(adjMatrix) <- 0
   non.diag.sum <- sum(adjMatrix)
@@ -1071,43 +1136,36 @@ performAnalysis <- function(outdir, conf) {
   if (non.diag.sum == 0) {
     loginfo("⚠️ Adjacency matrix empty — forcing dummy cluster", logger = "cluster.persons")
 
-    ids$ID.orig <- ids$ID
-    ids$ID <- seq_len(nrow(ids))
-    ids$Name <- as.character(ids$Name)
-
-    pr.for.all <- rep(0, nrow(ids))
-    pr.for.all.tr <- rep(0, nrow(ids))
-    prank.list <- list(reg = pr.for.all, tr = pr.for.all.tr)
+    prank.list <- list(
+      reg = rep(0, nrow(ids)),
+      tr  = rep(0, nrow(ids))
+    )
     dummy_comm <- list(membership = rep(1, nrow(ids)))
-    idx.global <- ids$ID.orig
 
-    # Save dummy cluster
     save.all(conf, adjMatrix, ids, prank.list, dummy_comm,
              paste(outdir, "/dummy_", sep = ""),
              label = "Dummy Cluster", idx = idx.global,
-             releaseRangeId = original_range_id)
-
-    # Save global cluster (-1)
-    save.all(conf, adjMatrix, ids, prank.list,
-             list(membership = rep(1, nrow(ids))),
-             paste(outdir, "/global_", sep = ""),
-             label = "Global (Forced)", idx = idx.global,
-             releaseRangeId = original_range_id)
-
-    return(0)
+             releaseRangeId = releaseRangeId)
+  } else {
+    performGraphAnalysis(conf, adjMatrix, ids, outdir, id.subsys,
+                         releaseRangeId = releaseRangeId)
   }
 
-  ################## Standard analysis #################
-  performGraphAnalysis(conf, adjMatrix, ids, outdir, id.subsys)
+  ## ✅ SAVE GLOBAL CLUSTER for all release ranges
+  prank.global <- list(
+    reg = rep(1, length(ids$ID)),
+    tr  = rep(1, length(ids$ID))
+  )
 
-  ## 🔥 Fallback: ensure global cluster is stored also in the standard path
-  idx.global <- ids$ID
-  prank.list <- list(reg = rep(1, length(ids$ID)), tr = rep(1, length(ids$ID)))
-  save.all(conf, adjMatrix, ids, prank.list,
-           list(membership = rep(1, length(ids$ID))),
-           paste(outdir, "/global_", sep = ""),
-           label = "Global (Forced)", idx = idx.global,
-           releaseRangeId = original_range_id)
+  release_range_ids <- get.range.ids.for.project(conf$con, conf$pid)
+  for (rrid in release_range_ids) {
+    message("💾 Forcing global cluster for releaseRangeId = ", rrid)
+    save.all(conf, adjMatrix, ids, prank.global,
+             list(membership = rep(1, length(ids$ID))),
+             paste(outdir, "/global_", sep = ""),
+             label = "Global (Forced)", idx = idx.global,
+             releaseRangeId = rrid)
+  }
 }
 
 writeClassicalStatistics <- function(outdir, ids.connected) {
@@ -1226,16 +1284,22 @@ performGraphAnalysis <- function(conf, adjMatrix, ids, outdir, id.subsys = NULL)
   ## Save graphs to DB
   ##-----------------------
   logdevinfo("Writing the all-developers graph sources", logger = "cluster.persons")
-  idx.global <- ids$ID.orig
   rrid <- conf$range.id
-  if (!is.null(attr(conf, "forced_range_id"))) {
-    message("⚠️ Overriding releaseRangeId with forced value")
-    rrid <- attr(conf, "forced_range_id")
+  rrid <- releaseRangeId
+  if (is.null(rrid)) {
+    warning("⚠️ releaseRangeId not provided to performGraphAnalysis — using conf$range.id fallback")
+    rrid <- conf$range.id
   }
   message("🔥 DEBUG: Saving Global cluster for releaseRangeId = ", rrid)
 
-  message("🧮 idx.global (original IDs):")
-  print(idx.global)
+  idx.global <- ids$ID.orig
+  if (exists("idx.global")) {
+    message("🧮 idx.global (original IDs):")
+    print(idx.global)
+  } else {
+    message("🧮 idx.global not yet computed.")
+  }
+
   message("🗂️  Release range ID: ", rrid)
 
   if (nrow(adjMatrix) == 0 || sum(adjMatrix) == 0) {
@@ -1459,8 +1523,30 @@ test.community.quality.modularity <- function() {
 ##----------------------------
 
 config.script.run({
-  conf <- config.from.args(positional.args=list("resdir", "range.id"),
-                           require.project=TRUE)
+  conf <- config.from.args(
+    positional.args = list("resdir", "range.id", "pid"),
+    require.project = TRUE
+  )
+  conf$pid <- as.integer(conf$pid)
   loginfo(str_c("DEBUG: conf$pid = ", conf$pid))
-  performAnalysis(conf$resdir, conf)
+
+  resdir <- conf$resdir
+  rid <- conf$range.id
+  conf_copy <- conf  # backup
+
+  args <- list(outdir = resdir, conf = conf)
+  if ("releaseRangeId" %in% names(formals(performAnalysis))) {
+    args$releaseRangeId <- rid
+  }
+
+  tryCatch({
+    do.call(performAnalysis, args)
+  }, error = function(e) {
+    if (grepl("unused argument.*releaseRangeId", conditionMessage(e))) {
+      message("⚠️ releaseRangeId not accepted — retrying without it")
+      do.call(performAnalysis, list(outdir = resdir, conf = conf_copy))
+    } else {
+      stop(e)
+    }
+  })
 })

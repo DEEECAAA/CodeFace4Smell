@@ -19,7 +19,7 @@ import sys
 from subprocess import check_call
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
-from os.path import dirname, join as pathjoin
+from os.path import dirname, abspath, join as pathjoin
 from pkg_resources import load_entry_point
 
 from codeface.logger import set_log_level, start_logfile, log
@@ -110,7 +110,7 @@ class EndToEndTestSetup(unittest.TestCase):
         if hasattr(self, 'config_file'):
             self.codeface_conf = self.config_file
         else:
-            self.codeface_conf = 'codeface.conf'
+            self.codeface_conf = abspath('codeface.conf')
 
     def add_ignored_tables(self, tables):
         self.ignore_tables = self.ignore_tables + tables
@@ -132,34 +132,46 @@ class EndToEndTestSetup(unittest.TestCase):
         conf = Configuration.load(self.codeface_conf, self.project_conf)
         dbm = DBManager(conf)
         project_id = dbm.getProjectID(conf["project"], self.tagging)
-        persons  = dbm.get_project_persons(project_id)
+        persons = dbm.get_project_persons(project_id)
+
         # Create map from id to name
-        person_map = {person[0] : person[1] for person in persons}
+        person_map = {person[0]: person[1] for person in persons}
         given_correct_edges = self.correct_edges
-        if given_correct_edges[0][0] is str:
-            # simply check the first range
+
+        # Normalize input format
+        if given_correct_edges and isinstance(given_correct_edges[0][0], str):
             given_correct_edges = [self.correct_edges]
+
         release_ranges = dbm.get_release_ranges(project_id)
-        i = -1
-        for correct_edges in given_correct_edges:
-            i += 1
+
+        for i, correct_edges in enumerate(given_correct_edges):
             release_range = release_ranges[i]
             cluster_id = dbm.get_cluster_id(project_id, release_range)
             edgelist = dbm.get_edgelist(cluster_id)
+
             # Create edge list with developer names
             test_edges = [[person_map[edge[0]], person_map[edge[1]], edge[2]] for edge in edgelist]
-            ## Check number of matches with known correct edges
+
+            # ✅ Accept empty cluster if no edges are expected
+            if len(correct_edges) == 0:
+                self.assertEqual(
+                    len(test_edges), 0,
+                    msg=f"Expected no edges, but got {len(test_edges)} in v{i}_release to v{i + 1}_release"
+                )
+                continue
+
+            # Compare expected edges with actual ones
             match_count = 0
             for test_edge in test_edges:
                 if test_edge in correct_edges:
                     match_count += 1
+
             res = (match_count == len(correct_edges))
             self.assertTrue(
                 res,
-                msg="Project edgelist is incorrect for the v{}_release "
-                    "to v{}_release analysis!"
-                .format(i, i+1))
-    
+                msg="Project edgelist is incorrect for the v{}_release to v{}_release analysis!".format(i, i + 1)
+            )
+
     def mlEndToEnd(self):
         save_argv = sys.argv
         sys.argv = ['codeface', '-l', self.loglevel, '-f', self.logfile,
