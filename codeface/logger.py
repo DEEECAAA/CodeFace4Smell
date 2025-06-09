@@ -42,16 +42,27 @@ def set_log_level(level_string):
     console_handler.setLevel(_loglevel_from_string(level_string)-1)
 
 def start_logfile(filename, level_string):
-    '''
-    Start logging to the file specified by *filename* using the log level
-    specified in *level_string*.
-    '''
-    logfile_handler = _get_log_handler(open(filename, 'w'))
+    print(f"📂 DEBUG: Called start_logfile with filename={filename}, level={level_string}")
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
+    # 🔁 Scrivi subito
+    with open(filename, 'w') as f:
+        f.write("🔥 File creato prima di attach handler\n")
+
+    logfile_handler = logging.FileHandler(filename, mode='a')  # ⬅️ usa append
+    logfile_handler.setFormatter(logging.Formatter(
+        "%(asctime)s [%(name)s] %(processName)s %(levelname)s: %(message)s",
+        datefmt='%Y-%m-%d %H:%M:%S'
+    ))
     logfile_handler.setLevel(_loglevel_from_string(level_string))
-    log.devinfo("Opened logfile '{}' with log level '{}'"
-            "".format(filename, level_string))
+
     log.addHandler(logfile_handler)
+    logging.getLogger().addHandler(logfile_handler)
+
     logfile_handlers[filename] = logfile_handler
+
+    log.devinfo("📥 Logfile initialized")
+    log.info("✅ Python logger scrive nel logfile!")
 
 def stop_logfile(filename):
     '''Stop logging to the log file *filename*'''

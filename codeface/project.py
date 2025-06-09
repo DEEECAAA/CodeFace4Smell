@@ -14,7 +14,8 @@
 # Copyright 2013 by Siemens AG
 # All Rights Reserved.
 import os
-from logging import getLogger; log = getLogger(__name__)
+from logging import getLogger
+from codeface.logger import log
 from pkg_resources import resource_filename
 from os.path import join as pathjoin, split as pathsplit, abspath
 
@@ -55,8 +56,24 @@ def project_setup(conf, recreate):
 def project_analyse(resdir, gitdir, codeface_conf, project_conf,
                     no_report, loglevel, logfile, recreate, profile_r,
                     n_jobs, tagging_type, reuse_db):
+    loginfo("📍 ENTER project_analyse")
+    log.info("✅ Check file log")
+    loginfo(f"resdir = {resdir}")
+    loginfo(f"gitdir = {gitdir}")
+    loginfo(f"codeface_conf = {codeface_conf}")
+    loginfo(f"project_conf = {project_conf}")
     pool = BatchJobPool(int(n_jobs))
     conf = Configuration.load(codeface_conf, project_conf)
+    log.info("🔥 DEBUG: Entering project_analyse")
+    log.info(f"🔥 DEBUG: codeface_conf={codeface_conf}")
+    log.info(f"🔥 DEBUG: project_conf={project_conf}")
+    log.info(f"🔥 DEBUG: resdir={resdir}")
+    log.info(f"🔥 DEBUG: gitdir={gitdir}")
+    log.info("🔥 DEBUG: Loaded conf keys: {}".format(list(conf._conf.keys())))
+    log.info("🔥 DEBUG: conf['project'] = {}".format(conf.get("project")))
+    log.info("🔥 DEBUG: conf['tagging'] = {}".format(conf.get("tagging")))
+    log.info("🔥 DEBUG: conf['revisions'] = {}".format(conf.get("revisions")))
+    log.info("🔥 DEBUG: conf['rcs'] = {}".format(conf.get("rcs")))
     tagging = conf["tagging"]
     if tagging_type != "default":
 
@@ -107,6 +124,7 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
     ## Save configuration file
     project_conf = conf.get_conf_file_loc()
     if project_conf is None:
+        log.info(f"📄 File di configurazione del progetto generato automaticamente in: {project_conf}")
         project_conf = os.path.join(resdir, "generated_testproject.conf")
         conf.to_file(project_conf)
     else:

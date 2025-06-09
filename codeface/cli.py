@@ -31,6 +31,8 @@ from codeface.configuration import Configuration
 from codeface.util import execute_command
 from codeface.project import project_analyse, mailinglist_analyse, sociotechnical_analyse
 
+from codeface.logger import log
+
 def get_parser():
     parser = argparse.ArgumentParser(prog='codeface',
                 description='Program for Social Data Analysis')
@@ -116,9 +118,11 @@ def get_parser():
 def cmd_run(args):
     '''Dispatch the ``run`` command.'''
     # First make all the args absolute
+    from codeface.logger import start_logfile
     resdir, gitdir = map(os.path.abspath, (args.resdir, args.gitdir))
     codeface_conf, project_conf = map(os.path.abspath, (args.config, args.project))
-    logfile = args.logfile
+    # Usa il logfile passato da run(), senza reinizializzare il logger
+    logfile = os.path.abspath(args.logfile) if args.logfile else None
     if logfile:
         logfile = os.path.abspath(logfile)
     project_analyse(resdir, gitdir, codeface_conf, project_conf,
@@ -129,11 +133,11 @@ def cmd_run(args):
 def cmd_ml(args):
     '''Dispatch the ``ml`` command.'''
     # First make all the args absolute
+    from codeface.logger import start_logfile
     resdir, mldir = map(os.path.abspath, (args.resdir, args.mldir))
     codeface_conf, project_conf = map(os.path.abspath, (args.config, args.project))
-    logfile = args.logfile
-    if logfile:
-        logfile = os.path.abspath(logfile)
+    # Usa il logfile passato da run(), senza reinizializzare il logger
+    logfile = os.path.abspath(args.logfile) if args.logfile else None
     mailinglist_analyse(resdir, mldir, codeface_conf, project_conf,
                         args.loglevel, logfile, args.jobs, args.mailinglist)
     return 0
@@ -141,11 +145,11 @@ def cmd_ml(args):
 def cmd_st(args):
     '''Dispatch the ``st`` command.'''
     # First make all the args absolute
+    from codeface.logger import start_logfile
     resdir = os.path.abspath(args.resdir)
     codeface_conf, project_conf = map(os.path.abspath, (args.config, args.project))
-    logfile = args.logfile
-    if logfile:
-        logfile = os.path.abspath(logfile)
+    # Usa il logfile passato da run(), senza reinizializzare il logger
+    logfile = os.path.abspath(args.logfile) if args.logfile else None
     sociotechnical_analyse(resdir, codeface_conf, project_conf,
                            args.loglevel, logfile, args.jobs)
     return 0
@@ -211,11 +215,29 @@ def cmd_test(args):
 
 def run(argv):
     parser = get_parser()
-    # Note: The first argument of argv is the name of the command
     args = parser.parse_args(argv[1:])
+
     set_log_level(args.loglevel)
-    if args.logfile:
-        start_logfile(args.logfile, 'debug')
+
+    logfile = args.logfile or '/home/vagrant/codeface/codeface.log'
+    logfile = os.path.abspath(logfile)
+    os.makedirs(os.path.dirname(logfile), exist_ok=True)
+
+    from codeface.logger import start_logfile, log
+    print(f"📂 DEBUG: calling start_logfile({logfile}, {args.loglevel})")
+    start_logfile(logfile, args.loglevel)
+    log.info("✅ Test logging: funziona!")
+    log.warning("⚠️ Verifica scrittura in log")
+    log.error("❌ Forzato log errore")
+
+    # ✅ CONTROLLA SE È STATO SELEZIONATO UN COMANDO
+    if not hasattr(args, "func"):
+        log.error("❌ Nessun comando specificato (run, test, ml, st...)")
+        parser.print_help()
+        return 1
+
+    with open(logfile, 'a') as f:
+        f.write("✅ Scrittura diretta in codeface.log\n")
     return args.func(args)
 
 def main():

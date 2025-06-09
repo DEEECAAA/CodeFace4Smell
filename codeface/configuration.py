@@ -22,10 +22,10 @@ Encapsulates a configuration as an immutable dict
 import yaml
 from shutil import copyfile
 from collections.abc import Mapping
-from logging import getLogger
+from codeface.logger import log
 from codeface.linktype import LinkType
+from codeface.project import loginfo
 
-log = getLogger(__name__)
 from tempfile import NamedTemporaryFile
 
 class ConfigurationError(Exception):
@@ -64,6 +64,9 @@ class Configuration(Mapping):
         '''
         Load configuration from global/local files
         '''
+        loginfo("📍 ENTER Configuration.load")
+        loginfo(f"global_conffile = {global_conffile}")
+        loginfo(f"local_conffile = {local_conffile}")
         c = Configuration()
         log.devinfo("Loading global configuration file '{}'".
                 format(global_conffile))
@@ -73,7 +76,10 @@ class Configuration(Mapping):
         if local_conffile:
             log.devinfo("Loading project configuration file '{}'".
                         format(local_conffile))
+            log.info(f"🧩 Inizio Configuration.load: project_conf={local_conffile}")
             c._project_conf = c._load(local_conffile)
+            log.info(f"🧩 Configurazione progetto caricata: {c._project_conf}")
+            log.info("🧩 Eseguo update di _conf con _project_conf...")
             c._conf.update(c._project_conf)
             c._conf_file_loc = local_conffile  # 👈 AGGIUNTA IMPORTANTE
         else:
@@ -84,7 +90,9 @@ class Configuration(Mapping):
 
     def _load(self, filename):
         '''Helper function that checks loading errors and logs them'''
+        loginfo(f"📄 Loading config file: {filename}")
         try:
+            log.info(f"📂 Caricamento file di configurazione: {filename}")
             return yaml.load(open(filename), Loader=yaml.FullLoader)
         except IOError:
             log.exception("Could not open configuration file '{}'".
