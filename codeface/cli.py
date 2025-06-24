@@ -31,33 +31,32 @@ from codeface.configuration import Configuration
 from codeface.util import execute_command
 from codeface.project import project_analyse, mailinglist_analyse, sociotechnical_analyse
 
-from codeface.logger import log
 
 def get_parser():
     parser = argparse.ArgumentParser(prog='codeface',
-                description='Program for Social Data Analysis')
+                                     description='Program for Social Data Analysis')
     parser.add_argument('-l', '--loglevel', help='Choose the logging level',
-                choices=['debug', 'devinfo', 'info', 'warning', 'error'],
-                default='info')
+                        choices=['debug', 'devinfo', 'info', 'warning', 'error'],
+                        default='info')
     parser.add_argument('-f', '--logfile', help='Save all debug logging into the'
-                ' given log file')
+                                                ' given log file')
     parser.add_argument('-j', '--jobs', default=1,
-                help='Number of cores to use in parallel')
+                        help='Number of cores to use in parallel')
 
     sub_parser = parser.add_subparsers(help='select action')
     test_parser = sub_parser.add_parser('test', help='Run tests')
     test_parser.set_defaults(func=cmd_test)
     test_parser.add_argument('-c', '--config', help="Codeface configuration file",
-                default='codeface_testing.conf')
+                             default='codeface_testing.conf')
     test_parser.add_argument('-p', '--pattern', default="*",
-                help='run only tests matching the given pattern')
+                             help='run only tests matching the given pattern')
     test_parser.add_argument('-u', '--unit', action='store_true',
-                help='run only unit tests')
+                             help='run only unit tests')
 
     run_parser = sub_parser.add_parser('run', help='Run analysis')
     run_parser.set_defaults(func=cmd_run)
     run_parser.add_argument('-c', '--config', help="Codeface configuration file",
-                default='codeface.conf')
+                            default='codeface.conf')
     run_parser.add_argument(
         '--tagging',
         help="Overrides the tagging configuration within the CLI. "
@@ -65,17 +64,17 @@ def get_parser():
              "default is fallback to configuration value",
         default='default')
     run_parser.add_argument('-p', '--project', help="Project configuration file",
-                required=True)
+                            required=True)
     run_parser.add_argument('resdir',
-                        help="Directory to store analysis results in")
+                            help="Directory to store analysis results in")
     run_parser.add_argument('gitdir',
-                        help="Directory for git repositories")
+                            help="Directory for git repositories")
     run_parser.add_argument('--no-report', action="store_true",
-                        help="Skip LaTeX report generation (and dot compilation)")
+                            help="Skip LaTeX report generation (and dot compilation)")
     run_parser.add_argument('--recreate', action="store_true",
-                        help="Force a delete of the project in the database")
+                            help="Force a delete of the project in the database")
     run_parser.add_argument('--profile-r', action="store_true",
-                        help="Compute an execution time profile for R code")
+                            help="Compute an execution time profile for R code")
     run_parser.add_argument(
         '--reuse-vcs-analysis', action='store_true', dest="reuse_db",
         help="Re-use an already existing vcs-analysis.db file. "
@@ -85,30 +84,30 @@ def get_parser():
     ml_parser = sub_parser.add_parser('ml', help='Run mailing list analysis')
     ml_parser.set_defaults(func=cmd_ml)
     ml_parser.add_argument('-c', '--config', help="Codeface configuration file",
-                default='codeface.conf')
+                           default='codeface.conf')
     ml_parser.add_argument('-p', '--project', help="Project configuration file",
-                required=True)
+                           required=True)
     ml_parser.add_argument('-m', '--mailinglist', help="Only run on the "
-                "specified mailing list (can be specified multiple times)",
-                default=[], action="append")
+                                                       "specified mailing list (can be specified multiple times)",
+                           default=[], action="append")
     ml_parser.add_argument('resdir',
-                        help="Directory to store analysis results in")
+                           help="Directory to store analysis results in")
     ml_parser.add_argument('mldir',
-                        help="Directory for mailing lists")
-    
+                           help="Directory for mailing lists")
+
     st_parser = sub_parser.add_parser('st', help='Run socio-technical analysis')
     st_parser.set_defaults(func=cmd_st)
     st_parser.add_argument('-c', '--config', help="Codeface configuration file",
-                default='codeface.conf')
+                           default='codeface.conf')
     st_parser.add_argument('-p', '--project', help="Project configuration file",
-                required=True)
+                           required=True)
     st_parser.add_argument('resdir',
-                        help="Directory with communication and collaboration analysis results")
+                           help="Directory with communication and collaboration analysis results")
 
     dyn_parser = sub_parser.add_parser('dynamic', help='Start R server for a dynamic graph')
     dyn_parser.set_defaults(func=cmd_dynamic)
     dyn_parser.add_argument('-c', '--config', help="Codeface configuration file",
-                default='codeface.conf')
+                            default='codeface.conf')
     dyn_parser.add_argument('graph', help="graph to show", default=None, nargs='?')
     dyn_parser.add_argument('-l', '--list', action="store_true", help="list available graphs")
     dyn_parser.add_argument('-p', '--port', default="8100", help="Pass this to R as port to listen on")
@@ -118,11 +117,9 @@ def get_parser():
 def cmd_run(args):
     '''Dispatch the ``run`` command.'''
     # First make all the args absolute
-    from codeface.logger import start_logfile
     resdir, gitdir = map(os.path.abspath, (args.resdir, args.gitdir))
     codeface_conf, project_conf = map(os.path.abspath, (args.config, args.project))
-    # Usa il logfile passato da run(), senza reinizializzare il logger
-    logfile = os.path.abspath(args.logfile) if args.logfile else None
+    logfile = args.logfile
     if logfile:
         logfile = os.path.abspath(logfile)
     project_analyse(resdir, gitdir, codeface_conf, project_conf,
@@ -130,34 +127,37 @@ def cmd_run(args):
                     args.profile_r, args.jobs, args.tagging, args.reuse_db)
     return 0
 
+
 def cmd_ml(args):
     '''Dispatch the ``ml`` command.'''
     # First make all the args absolute
-    from codeface.logger import start_logfile
     resdir, mldir = map(os.path.abspath, (args.resdir, args.mldir))
     codeface_conf, project_conf = map(os.path.abspath, (args.config, args.project))
-    # Usa il logfile passato da run(), senza reinizializzare il logger
-    logfile = os.path.abspath(args.logfile) if args.logfile else None
+    logfile = args.logfile
+    if logfile:
+        logfile = os.path.abspath(logfile)
     mailinglist_analyse(resdir, mldir, codeface_conf, project_conf,
                         args.loglevel, logfile, args.jobs, args.mailinglist)
     return 0
 
+
 def cmd_st(args):
     '''Dispatch the ``st`` command.'''
     # First make all the args absolute
-    from codeface.logger import start_logfile
     resdir = os.path.abspath(args.resdir)
     codeface_conf, project_conf = map(os.path.abspath, (args.config, args.project))
-    # Usa il logfile passato da run(), senza reinizializzare il logger
-    logfile = os.path.abspath(args.logfile) if args.logfile else None
+    logfile = args.logfile
+    if logfile:
+        logfile = os.path.abspath(logfile)
     sociotechnical_analyse(resdir, codeface_conf, project_conf,
                            args.loglevel, logfile, args.jobs)
     return 0
 
+
 def cmd_dynamic(args):
     dyn_directory = resource_filename(__name__, "R/shiny/apps")
 
-    if args.graph is None and not(args.list):
+    if args.graph is None and not (args.list):
         log.critical("No dynamic graph given!")
 
     if args.list or args.graph is None:
@@ -176,16 +176,17 @@ def cmd_dynamic(args):
     cmd = ["Rscript", "-e", Rcode, "-c", cfg]
     execute_command(cmd, direct_io=True, cwd=cwd)
 
+
 def cmd_test(args):
     '''Sub-command handler for the ``test`` command.'''
-    unit_only=args.unit
-    pattern=args.pattern
-    config_file=os.path.abspath(args.config)
+    unit_only = args.unit
+    pattern = args.pattern
+    config_file = os.path.abspath(args.config)
     del args
     test_path = os.path.join(os.path.dirname(__file__), 'test')
     print('\n===== running unittests =====\n')
     tests = unittest.TestLoader().discover(os.path.join(test_path, 'unit'),
-        pattern='test_{}.py'.format(pattern), top_level_dir=test_path)
+                                           pattern='test_{}.py'.format(pattern), top_level_dir=test_path)
     unit_result = unittest.TextTestRunner(verbosity=1).run(tests)
     unit_success = not (unit_result.failures or unit_result.errors)
     if unit_only:
@@ -196,7 +197,8 @@ def cmd_test(args):
         return 0 if unit_success else 1
     print('\n===== running integration tests =====\n')
     tests = unittest.TestLoader().discover(os.path.join(test_path, 'integration'),
-        pattern='test_{}.py'.format(pattern), top_level_dir=test_path)
+                                           pattern='test_{}.py'.format(pattern), top_level_dir=test_path)
+
     # Set the testing configuration file as member variable
     # for all integration tests, since we need the DB and REST configurations
     def set_config(suite):
@@ -204,41 +206,26 @@ def cmd_test(args):
             for test in suite:
                 set_config(test)
         suite.config_file = config_file
+
     set_config(tests)
     int_result = unittest.TextTestRunner(verbosity=2).run(tests)
     int_success = not (int_result.failures or int_result.errors)
     if unit_success and int_success:
-            print('\n===== all tests succeeded :) =====')
+        print('\n===== all tests succeeded :) =====')
     else:
-            print('\n===== some tests failed :( =====')
+        print('\n===== some tests failed :( =====')
     return 0 if unit_success and int_success else 1
+
 
 def run(argv):
     parser = get_parser()
+    # Note: The first argument of argv is the name of the command
     args = parser.parse_args(argv[1:])
-
     set_log_level(args.loglevel)
-
-    logfile = args.logfile or '/home/vagrant/codeface/codeface.log'
-    logfile = os.path.abspath(logfile)
-    os.makedirs(os.path.dirname(logfile), exist_ok=True)
-
-    from codeface.logger import start_logfile, log
-    print(f"📂 DEBUG: calling start_logfile({logfile}, {args.loglevel})")
-    start_logfile(logfile, args.loglevel)
-    log.info("✅ Test logging: funziona!")
-    log.warning("⚠️ Verifica scrittura in log")
-    log.error("❌ Forzato log errore")
-
-    # ✅ CONTROLLA SE È STATO SELEZIONATO UN COMANDO
-    if not hasattr(args, "func"):
-        log.error("❌ Nessun comando specificato (run, test, ml, st...)")
-        parser.print_help()
-        return 1
-
-    with open(logfile, 'a') as f:
-        f.write("✅ Scrittura diretta in codeface.log\n")
+    if args.logfile:
+        start_logfile(args.logfile, 'debug')
     return args.func(args)
+
 
 def main():
     import sys

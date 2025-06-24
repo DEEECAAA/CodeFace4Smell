@@ -22,15 +22,17 @@ Encapsulates a configuration as an immutable dict
 import yaml
 from shutil import copyfile
 from collections.abc import Mapping
-from codeface.logger import log
+from logging import getLogger
 from codeface.linktype import LinkType
-from codeface.project import loginfo
 
+log = getLogger(__name__)
 from tempfile import NamedTemporaryFile
+
 
 class ConfigurationError(Exception):
     '''Raised if any part of the configuration is malformed'''
     pass
+
 
 class Configuration(Mapping):
     '''
@@ -38,7 +40,7 @@ class Configuration(Mapping):
     '''
 
     GLOBAL_KEYS = ('dbname', 'dbhost', 'dbuser', 'dbpwd',
-            'idServiceHostname', 'idServicePort')
+                   'idServiceHostname', 'idServicePort')
     GLOBAL_OPTIONAL_KEYS = ('dbport',)
     PROJECT_KEYS = ('project', 'repo', 'tagging', 'revisions', 'rcs')
     OPTIONAL_KEYS = ('description', 'ml', 'mailinglists', 'sleepTime',
@@ -53,9 +55,9 @@ class Configuration(Mapping):
         Initialize an empty configuration object with the default values
         '''
         self._conf = {
-                'idServiceHostname' : '127.0.0.1',
-                'idServicePort' : 8080
-                }
+            'idServiceHostname': '127.0.0.1',
+            'idServicePort': 8080
+        }
         self._conf_file_loc = None
         self._conf_file_substitute = False
 
@@ -64,22 +66,16 @@ class Configuration(Mapping):
         '''
         Load configuration from global/local files
         '''
-        loginfo("📍 ENTER Configuration.load")
-        loginfo(f"global_conffile = {global_conffile}")
-        loginfo(f"local_conffile = {local_conffile}")
         c = Configuration()
         log.devinfo("Loading global configuration file '{}'".
-                format(global_conffile))
+                    format(global_conffile))
         self._local_conf_name = local_conffile
         self._global_conf = c._load(global_conffile)
         c._conf.update(c._global_conf)
         if local_conffile:
             log.devinfo("Loading project configuration file '{}'".
                         format(local_conffile))
-            log.info(f"🧩 Inizio Configuration.load: project_conf={local_conffile}")
             c._project_conf = c._load(local_conffile)
-            log.info(f"🧩 Configurazione progetto caricata: {c._project_conf}")
-            log.info("🧩 Eseguo update di _conf con _project_conf...")
             c._conf.update(c._project_conf)
             c._conf_file_loc = local_conffile  # 👈 AGGIUNTA IMPORTANTE
         else:
@@ -90,17 +86,15 @@ class Configuration(Mapping):
 
     def _load(self, filename):
         '''Helper function that checks loading errors and logs them'''
-        loginfo(f"📄 Loading config file: {filename}")
         try:
-            log.info(f"📂 Caricamento file di configurazione: {filename}")
             return yaml.load(open(filename), Loader=yaml.FullLoader)
         except IOError:
             log.exception("Could not open configuration file '{}'".
-                    format(filename))
+                          format(filename))
             raise
         except yaml.YAMLError:
             log.exception("Could not parse configuration file '{}'".
-                    format(filename))
+                          format(filename))
             raise
 
     def _initialize(self):
@@ -131,19 +125,19 @@ class Configuration(Mapping):
         for key in self.GLOBAL_KEYS:
             if self._project_conf and key in self._project_conf:
                 log.critical("The key '{}' may not be overridden in the "
-                        "project configuration file".format(key))
+                             "project configuration file".format(key))
                 raise ConfigurationError('Invalid configuration key.')
 
         for key in self.GLOBAL_KEYS + self.PROJECT_KEYS:
             if not key in self:
                 log.critical("Required key '{}' missing in configuration!"
-                        ''.format(key))
+                             ''.format(key))
                 raise ConfigurationError('Missing configuration key.')
 
         if not self['tagging'] in LinkType.get_all_link_types():
             log.critical('Unsupported tagging mechanism specified!')
             raise ConfigurationError('Unsupported tagging mechanism.')
-        
+
         if self["revisions"] == "3months":
             self._conf_file_substitute = True
             log.info("3 months ranges specified in configuration, analyzing history "
@@ -155,28 +149,28 @@ class Configuration(Mapping):
 
         if len(self["revisions"]) != len(self["rcs"]):
             log.critical("Malformed configuration: revision and rcs list "
-                "lengths differ! Found {0} revisions and {1} release "
-                "candidates.".format(len(self["revisions"]), len(self["rcs"])))
+                         "lengths differ! Found {0} revisions and {1} release "
+                         "candidates.".format(len(self["revisions"]), len(self["rcs"])))
             raise ConfigurationError('Malformed configuration.')
 
         unknown_keys = [k for k in self if k not in self.ALL_KEYS]
         for key in unknown_keys:
             log.warning("Unknown key '{}' in configuration.".format(key))
-            
+
     def _substitute(self):
-        f = open(self._local_conf_name,'r')
+        f = open(self._local_conf_name, 'r')
         filedata = f.read()
         f.close()
         filedata = filedata.replace('3months', str(self["revisions"]))
         tmp_file = NamedTemporaryFile(mode='w', prefix=self._conf['project'],
-                                     delete=False)
+                                      delete=False)
         tmp_file.write(filedata.encode())
         tmp_file.close()
         copyfile(tmp_file.name, self._local_conf_name)
 
     def write(self):
         conf_file = NamedTemporaryFile(mode='w', prefix=self._conf['project'],
-                                     delete=False)
+                                       delete=False)
         yaml.dump(self._conf, conf_file)
         self._conf_file_loc = conf_file.name
         conf_file.close()
