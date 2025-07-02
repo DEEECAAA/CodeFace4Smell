@@ -43,12 +43,12 @@ suppressPackageStartupMessages(library(reshape))
 suppressPackageStartupMessages(library(ggplot2))
 suppressPackageStartupMessages(library(optparse))
 suppressPackageStartupMessages(library(plyr))
-source("../utils.r", chdir=TRUE)
-source("../config.r", chdir=TRUE)
-source("../db.r", chdir=TRUE)
-source("../query.r", chdir=TRUE)
-source("community_metrics.r")
-source("network_visualization.r")
+source("//vagrant/codeface/R/utils.r", chdir=TRUE)
+source("//vagrant/codeface/R/config.r", chdir=TRUE)
+source("//vagrant/codeface/R/db.r", chdir=TRUE)
+source("//vagrant/codeface/R/query.r", chdir=TRUE)
+source("//vagrant/codeface/R/cluster/community_metrics.r")
+source("//vagrant/codeface/R/cluster/network_visualization.r")
 
 
 # ✅ Estrai l'ultimo argomento passato da commandArgs: rrid
@@ -659,6 +659,11 @@ plot.group <- function(N, .tags, .iddb, .comm) {
 save.group <- function(conf, .tags, idx, .prank, .filename = NULL, label, iddb) {
   subset <- .tags[idx, idx]
 
+  if (length(idx) == 0) {
+  warning("⚠️ save.group() aborted: idx is empty")
+  return(igraph::make_empty_graph())
+  }
+
   # 🩹 Forza la struttura corretta di iddb
   iddb <- as.data.frame(iddb)
   iddb$ID <- as.numeric(iddb$ID)
@@ -716,6 +721,11 @@ save.group <- function(conf, .tags, idx, .prank, .filename = NULL, label, iddb) 
 
 ## Prepare graph data for database and insert
 store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, clusterNumber, releaseRangeId = NULL) {
+  if (length(idx) == 0) {
+  message("⚠️ store.graph.db aborted: idx is empty")
+  return(invisible(NULL))
+  }
+
   if (is.null(releaseRangeId)) {
     releaseRangeId <- conf$range.id
   }
@@ -728,13 +738,23 @@ store.graph.db <- function(conf, baselabel, idx, .iddb, g.reg, g.tr, clusterNumb
   message("💾 Storing cluster to DB: ", baselabel, " [cluster=", clusterNumber, "]")
 
   ## Create and insert cluster entry
-  cluster.entry <- data.frame(
-    projectId = conf$pid,
-    releaseRangeId = releaseRangeId,
-    clusterNumber = clusterNumber,
-    label = as.character(baselabel),
-    stringsAsFactors = FALSE
-  )
+   pid <- if (length(conf$pid) == 0) NA else conf$pid
+   if (is.na(pid)) {
+    message("⚠️ store.graph.db aborted: projectId is NA — cannot insert into database")
+    return(invisible(NULL))
+   }
+   rid <- if (length(releaseRangeId) == 0) NA else releaseRangeId
+   cln <- if (length(clusterNumber) == 0) NA else clusterNumber
+   lbl <- if (length(baselabel) == 0) "Unnamed Cluster" else as.character(baselabel)
+
+   cluster.entry <- data.frame(
+   projectId = pid,
+   releaseRangeId = rid,
+   clusterNumber = cln,
+   label = lbl,
+   stringsAsFactors = FALSE
+   )
+
   message("📝 cluster.entry:")
   print(cluster.entry)
 

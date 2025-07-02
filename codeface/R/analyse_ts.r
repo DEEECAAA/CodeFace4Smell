@@ -140,23 +140,26 @@ gen.rev.list <- function(revisions) {
 ## data point. Using the robust median instead of mean considerably
 ## reduces the amount of outliers
 process.ts <- function(series) {
-  duration <- end(series) - start(series)
+  if (is.null(series) || length(series) == 0) {
+    warning("⚠️ process.ts: series is NULL or empty — skipping")
+    return(data.frame())
+  }
 
-  ## We compute the window lengths based on natural time units
-  ## to avoid dependencies on the lifetime of the project, or on the
-  ## project's relative activity
+  duration <- tryCatch({
+    end(series) - start(series)
+  }, error = function(e) {
+    warning("⚠️ process.ts: cannot compute start/end of series — returning empty")
+    return(data.frame())
+  })
+
   series.weekly <- na.omit(apply.weekly(series, median))
   series.monthly <- na.omit(apply.monthly(series, median))
   series.cumulative <- cumsum(series)
 
-  ## NOTE: R can only merge two data frames at once
-  series.merged <- merge(gen.df.from.ts(series.weekly,
-                                        type="Averaged (small window)"),
-                         gen.df.from.ts(series.monthly,
-                                        type="Averaged (large window)"), all=TRUE)
+  series.merged <- merge(gen.df.from.ts(series.weekly, type="Averaged (small window)"),
+                         gen.df.from.ts(series.monthly, type="Averaged (large window)"), all=TRUE)
   series.merged <- merge(series.merged,
-                         gen.df.from.ts(series.cumulative,
-                                        type="Cumulative"), all=TRUE)
+                         gen.df.from.ts(series.cumulative, type="Cumulative"), all=TRUE)
 
   return(series.merged)
 }
@@ -518,31 +521,38 @@ do.ts.analysis <- function(resdir, graphdir, conf) {
   ## algorithms
   full.ts <- gen.full.ts(conf)
   series.merged <- process.ts(full.ts)
+  if (nrow(series.merged) == 0 || !"type" %in% colnames(series.merged)) {
+    stop("⚠️ Empty or malformed series.merged — aborting analysis_ts.r")
+  }
 
   ## Prepare y ranges for the different graph types
   ## Compute min/max value per type, and prepare a special
   ## version of boundaries used for plotting which includes
   ## the boundaries
-  ranges <- ddply(series.merged, .(type), summarise,
-                  ymin=min(value), ymax=max(value))
-
-  num.types <- length(unique(ranges$type))
-  res <- vector("list", num.types)
-  for (i in 1:num.types) {
-    res[[i]] <- cbind(conf$boundaries, ranges[i,])
+  if (nrow(ranges) == nrow(conf$boundaries)) {
+    boundaries.plot <- cbind(conf$boundaries, ranges)
+  } else {
+    logwarn("⚠️ boundaries and ranges row mismatch — skipping boundaries.plot")
+    boundaries.plot <- NULL
   }
-  boundaries.plot <- do.call(rbind, res)
 
   ## Visualisation
   ## TODO: log and sqrt transform are reasonable for the averaged, but not
   ## for the cumulative series
   g <- ggplot(series.merged, aes(x=time, y=value)) + geom_line() +
-    facet_grid(type~., scale="free_y") +
-    geom_vline(aes(xintercept=as.numeric(date.end), colour="red"),
-               data=boundaries.plot) +
-    scale_fill_manual(values = alpha(c("blue", "red"), .1)) +
-    xlab("Time") + ylab("Amount of changes") +
-    ggtitle(paste("Code changes for project '", conf$description, "'", sep=""))
+  facet_grid(type~., scale="free_y") +
+  xlab("Time") + ylab("Amount of changes") +
+  ggtitle(paste("Code changes for project '", conf$description, "'", sep=""))
+
+  if (!is.null(boundaries.plot)) {
+    g <- g + geom_vline(aes(xintercept=as.numeric(date.end), colour="red"),
+                          data=boundaries.plot)
+    if (any(!is.na(boundaries.plot$date.rc.start))) {
+      g <- g + geom_rect(aes(NULL, NULL, xmin=date.rc.start, xmax=date.end,
+                             ymin=ymin, ymax=ymax, fill="blue"),
+                         data=na.omit(boundaries.plot))
+    }
+  }
 
   ## na.omit is required to remove all cycles that don't contain
   ## rc regions.

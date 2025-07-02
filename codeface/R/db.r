@@ -492,6 +492,11 @@ write.graph.db <- function(conf, range.id, baselabel, edgelist, j) {
 }
 
 get.range.ids.for.project <- function(con, pid) {
+  if (missing(pid) || is.null(pid) || is.na(pid)) {
+    warning("⚠️ get.range.ids.for.project: invalid or missing projectId — returning empty result")
+    return(integer(0))
+  }
+
   rs <- dbSendQuery(con, paste("SELECT id FROM release_range WHERE projectId =", pid))
   data <- fetch(rs, n = -1)
   dbClearResult(rs)
