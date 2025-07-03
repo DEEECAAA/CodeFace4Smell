@@ -529,6 +529,8 @@ do.ts.analysis <- function(resdir, graphdir, conf) {
   ## Compute min/max value per type, and prepare a special
   ## version of boundaries used for plotting which includes
   ## the boundaries
+  ranges <- data.frame(ymin = rep(0, nrow(conf$boundaries)),
+                     ymax = rep(100, nrow(conf$boundaries)))
   if (nrow(ranges) == nrow(conf$boundaries)) {
     boundaries.plot <- cbind(conf$boundaries, ranges)
   } else {
@@ -635,6 +637,10 @@ do.release.analysis <- function(resdir, graphdir, conf) {
 ## coherent time series for a particular type and store the resulting
 ## time series in the data base
 process.sloccount.ts <- function(con, pid, dat, type="total.cost") {
+    if (nrow(dat) == 0) {
+      warning("process.sloccount.ts: empty input data, skipping")
+      return(list(ts.df = data.frame(t = NA, val = NA), label = type))
+    }
     if (!(type %in% c("person.months", "total.cost", "schedule.months",
                       "avg.devel"))) {
         type <- "total.cost"
@@ -688,7 +694,15 @@ do.sloccount.analysis <- function(conf, pid) {
     }
 
     ## The plot id has already been created in complexity.r
-    plot.id <- get.plot.id(conf, "sloccount")
+    sql <- sprintf("SELECT COUNT(*) AS n FROM plots WHERE name='sloccount' AND projectId=%d", pid)
+    plot.exists <- dbGetQuery(conf$con, sql)$n
+
+    if (plot.exists == 0) {
+       message("DEBUG: 'sloccount' plot not found, registering manually")
+       plot.id <- get.clear.plot.id(conf, "sloccount", labely = "SLOC")
+    } else {
+       plot.id <- get.plot.id(conf, "sloccount")
+    }
     dat <- query.sloccount.ts(conf$con, plot.id)
 
     for (type in c("person.months", "total.cost", "schedule.months",
@@ -740,9 +754,10 @@ do.understand.analysis <- function(conf, pid) {
 
 ######################### Dispatcher ###################################
 config.script.run({
-  conf <- config.from.args(positional.args=list("resdir"),
+  conf <- config.from.args(positional.args=list("resdir", "range.id"),
                            require.project=TRUE)
   resdir <- conf$resdir
+  conf$range.id <- as.integer(conf$range.id)
   graphdir <- file.path(resdir, "graphs")
   logdevinfo(paste("graphdir is", graphdir), logger="analyze_ts")
   dir.create(graphdir, showWarnings=FALSE, recursive=TRUE)

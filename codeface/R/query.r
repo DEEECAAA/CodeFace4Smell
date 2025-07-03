@@ -131,7 +131,7 @@ get.cycles.con <- function(con, pid, boundaries=FALSE, allow.empty.ranges=FALSE)
   colnames(res)[colnames(res)=="releaseRangeID"] <- "range.id"
 
   if(boundaries) {
-    column.selection <- c("date.start", "date.end", "date.rc.start", "tag",
+    column.selection <- c("range.id","date.start", "date.end", "date.rc.start", "tag",
                           "cycle")
   }
   else{

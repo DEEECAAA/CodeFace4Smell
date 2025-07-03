@@ -17,7 +17,7 @@
 ## Helper functions for constructing release boundary information
 
 prepare.release.boundaries <- function(conf) {
-  res <- get.cycles.con(conf$con, conf$pid, boundaries=T)
+  res <- get.cycles.con(conf$con, conf$pid, boundaries=TRUE)
 
   date.columns <- c("date.start", "date.end", "date.rc.start")
   for (col in date.columns) {
