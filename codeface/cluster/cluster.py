@@ -51,7 +51,7 @@ def createDB(filename, git_repo, revrange, subsys_descr, link_type,
     #------------------
     #configuration
     #------------------
-    git = gitVCS();
+    git = gitVCS()
     git.setRepository(git_repo)
     git.setRevisionRange(revrange[0], revrange[1])
     git.setSubsysDescription(subsys_descr)
@@ -1840,7 +1840,7 @@ def performAnalysis(conf, dbm, dbfilename, git_repo, revrange, subsys_descr,
 
     log.devinfo("Reading from data base {0}...".format(dbfilename))
     git = readDB(dbfilename)
-    cmtlist = git.extractCommitData("__main__")
+    cmtlist = git.extractCommitData("__main__", link_type)
     cmtdict = git.getCommitDict()
 
     #---------------------------------

@@ -193,26 +193,28 @@ def project_analyse(resdir, gitdir, codeface_conf, project_conf,
         cmd.extend(("-p", project_conf))
         cmd.extend(("-j", str(n_jobs)))
         cmd.append(repo)
-        cmd.append(str(project_id))
+        cmd.append(str(range_id))
         execute_command(cmd, direct_io=True, cwd=cwd)
 
     #########
     # Global stage 3: Time series analysis
-    log.info("=> Analysing time series")
-    exe = abspath(resource_filename(__name__, "R/analyse_ts.r"))
-    cwd, _ = pathsplit(exe)
-    cmd = [exe]
-    if profile_r:
-        cmd.append("--profile")
-    if logfile:
-        cmd.extend(("--logfile", "{}.R.ts".format(logfile)))
-    cmd.extend(("--loglevel", loglevel))
-    cmd.extend(("-c", codeface_conf))
-    cmd.extend(("-p", project_conf))
-    cmd.extend(("-j", str(n_jobs)))
-    cmd.append(project_resdir)
-    execute_command(cmd, direct_io=True, cwd=cwd)
-    log.info("=> Codeface run complete!")
+    for range_id in all_range_ids:
+        log.info("=> Analysing time series")
+        exe = abspath(resource_filename(__name__, "R/analyse_ts.r"))
+        cwd, _ = pathsplit(exe)
+        cmd = [exe]
+        if profile_r:
+            cmd.append("--profile")
+        if logfile:
+            cmd.extend(("--logfile", "{}.R.ts".format(logfile)))
+        cmd.extend(("--loglevel", loglevel))
+        cmd.extend(("-c", codeface_conf))
+        cmd.extend(("-p", project_conf))
+        cmd.extend(("-j", str(n_jobs)))
+        cmd.append(project_resdir)
+        cmd.append(str(range_id))
+        execute_command(cmd, direct_io=True, cwd=cwd)
+        log.info("=> Codeface run complete!")
 
 
 def mailinglist_analyse(resdir, mldir, codeface_conf, project_conf, loglevel,

@@ -35,6 +35,7 @@
 # TODO: Unify range handling. Either a range is always a list, or always
 # represented by two parameters.
 import itertools
+import json
 import readline
 
 from . import commit
@@ -88,10 +89,10 @@ class VCS:
     def __init__(self):
         # "None" represents HEAD for end and the inital
         # commit for start
-        self.rev_start_date = None;
-        self.rev_end_date = None;
-        self.rev_start     = None;
-        self.rev_end       = None;
+        self.rev_start_date = None
+        self.rev_end_date = None
+        self.rev_start     = None
+        self.rev_end       = None
         self.repo          = None
 
         # Get commit ranges using dates
@@ -164,21 +165,6 @@ class VCS:
 
     def setRangeByDate(self, range_by_date):
         self.range_by_date = range_by_date
-
-    def extractCommitData(self, subsys="__main__"):
-        """Analyse the repository and cache the results.
-
-        Takes the list of commits, computes the associated
-        diffs in various ways, and stores (i.e., caches) the results
-        in the object instance so that they can be serialised."""
-        return []
-
-    def extractCommitDataRange(self, revrange, subsys="__main__"):
-        """Analyse a certain range of the repository.
-
-        Restrict the data obtained from extractCommitData() to
-        a specific time slice."""
-        return []
 
     def getDiffVariations(self):
         return 1
@@ -716,16 +702,12 @@ class gitVCS (VCS):
         in _commit_list_dict["__main__"] as well as in a dictionary
         (_commit_dict) that is indexed by commit id.
         """
-        # If we have already computed the list, we need not
-        # do it again
-        if self._commit_list_dict != None:
-            return
 
         self._commit_list_dict = {}
         self._commit_id_list_dict = {}
         self._commit_dict = {}
         clist = self._getCommitIDsLL(self.rev_start, self.rev_end)
-
+        print("DEBUG - _getCommitIDsLL result:", clist)
         # We need to process the array in inverse order to obtain a
         # time-wise increasing sequence. The result is a list of
         # commit objects
@@ -1031,6 +1013,11 @@ class gitVCS (VCS):
 
 
     def extractCommitData(self, subsys="__main__", link_type=None):
+        """Analyse the repository and cache the results.
+
+                Takes the list of commits, computes the associated
+                diffs in various ways, and stores (i.e., caches) the results
+                in the object instance so that they can be serialised."""
         if not self._subsysIsValid(subsys):
             log.critical("Subsys specification invalid: {0}\n".format(subsys))
             raise Error("Invalid subsystem specification.")
@@ -1054,6 +1041,7 @@ class gitVCS (VCS):
         # It suffices to analyse the commits in the global commit list
         # __main__, the subsystem information follows automatically
         # from this.
+        print(self._commit_dict)
         count = 0
         widgets = ['Pass 1/2: ', Percentage(), ' ', Bar(), ' ', ETA()]
         pbar = ProgressBar(widgets=widgets,
@@ -1064,9 +1052,9 @@ class gitVCS (VCS):
             if count % 20 == 0:
                 pbar.update(count)
 
-#            print("Processing commit {0}/{1} ({2})".
-#                  format(count, len(self._commit_list_dict["__main__"]),
-#                         cmt.id))
+            print("Processing commit {0}/{1} ({2})".
+                  format(count, len(self._commit_list_dict["__main__"]),
+                         cmt.id))
 
             self._parseCommit(cmt)
 
@@ -1074,7 +1062,6 @@ class gitVCS (VCS):
         # For the subsystems, we need not re-analyse the commits again,
         # but can just pick the results from the global analysis.
         # Which was already done by _prepareCommitLists() ;-)
-
         return self._commit_list_dict[subsys]
 
 
