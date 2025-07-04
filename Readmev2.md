@@ -224,6 +224,25 @@ Di seguito riportiamo un esempio del file .conf del progetto da analizzare:
     tagging: tag
     understand: false
 
-Eseguire il comando:
-    
-    codeface run -p /vagrant/PixelArena.conf/home/result/home/repos
+## ULTIME AGGIUNTE
+
+Eseguire il comando per dare il permesso alla cartella su cui troverai l'errore:
+
+    sudo install -d -m 0777 /home/vagrant/R/x86_64-pc-linux-gnu-library/4.5
+
+Successivamente, nell'interfaccia di R eseguire il comando:
+
+    if (!requireNamespace("BiocManager", quietly = TRUE)) {
+        install.packages("BiocManager")
+    }
+    BiocManager::install("Rgraphviz", lib="~/R/x86_64-pc-linux-gnu-library/4.5", force=TRUE)
+    q()
+
+Inoltre, bisogna convertire i file R in formato UNIX tramite questo comando:
+
+    sudo apt install dos2unix    # se non installato
+    find /vagrant/codeface/R/ -name "*.r" -exec dos2unix {} \;
+
+## PER RUNNARE CODEFACE
+
+    codeface run -p /vagrant/tuo-progetto.conf /dir/result /dir/repo
