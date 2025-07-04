@@ -33,4 +33,7 @@ Vagrant.configure("2") do |config|
 
   # Test finale
   config.vm.provision "shell", path: "integration-scripts/test_codeface.sh", run: "always"
+
+  # Provisioning
+  config.vm.provision "shell", path: "integration-scripts/provision.sh", run: "always"
 end
