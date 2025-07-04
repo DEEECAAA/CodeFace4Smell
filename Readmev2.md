@@ -200,29 +200,29 @@ Aprire la shell ed eseguire il seguente comando:
 
     ps aux | grep node
 
-Installare i permessi per la DIR dei risultati:
+Creare due directory. La prima directory conterrà i risultati di codeface, mentre la seconda conterrà 
+la directory clonata da github. Dopodichè eseguire il seguente comando:
     
-    install -d -m 0777 /tua/dir
+    install -d -m 0777 /tua/dir-risultato
 
 Di seguito riportiamo un esempio del file .conf del progetto da analizzare:
 
-    project: 
-        name: Pixel-Arena
-
+    mailinglists: []
+        project: Pixel-Arena
+        proxyPort: 83
+    rcs:
+        -null
+        -null
+        -null
+    repo: ../repos/Pixel-Arena
     revisions:
-        - id: rev1
-        start: 2000-01-01
-        end: 2099-12-31
-
-    repo:
-    name: Pixel-Arena
-      path: Pixel-Arena
-    vcs: git
-
-    tagging:
-        type: none
-
-
+        -71a4adc
+        -357bbc4
+        -06c0f58
+    sleepTime: 1000
+    sloccount: false
+    tagging: tag
+    understand: false
 
 Eseguire il comando:
     
