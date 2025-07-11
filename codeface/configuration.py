@@ -60,6 +60,7 @@ class Configuration(Mapping):
         }
         self._conf_file_loc = None
         self._conf_file_substitute = False
+        self._project_conf = {}
 
     @classmethod
     def load(self, global_conffile, local_conffile=None):
@@ -67,19 +68,19 @@ class Configuration(Mapping):
         Load configuration from global/local files
         '''
         c = Configuration()
-        log.devinfo("Loading global configuration file '{}'".
+        log.debug("Loading global configuration file '{}'".
                     format(global_conffile))
         self._local_conf_name = local_conffile
         self._global_conf = c._load(global_conffile)
         c._conf.update(c._global_conf)
         if local_conffile:
-            log.devinfo("Loading project configuration file '{}'".
+            log.debug("Loading project configuration file '{}'".
                         format(local_conffile))
             c._project_conf = c._load(local_conffile)
             c._conf.update(c._project_conf)
             c._conf_file_loc = local_conffile  # 👈 AGGIUNTA IMPORTANTE
         else:
-            log.devinfo("Not loading project configuration file!")
+            log.debug("Not loading project configuration file!")
         c._initialize()
         c._check_sanity()
         return c

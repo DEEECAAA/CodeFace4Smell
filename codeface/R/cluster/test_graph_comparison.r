@@ -40,7 +40,7 @@ graph.comparison.test <- function () {
   V(g.1)$Id <- names
   idx <- 1:vcount(g.1)
   rand.idx <- sample(idx,size=length(idx))
-  g.2 <- graph_from_adjacency_matrix(g.1[rand.idx,rand.idx])
+  g.2 <- permute(g.1, rand.idx)
   res <- graph.comparison(g.1, g.2)
   if(all(res==0)){
     print("Test Passed")

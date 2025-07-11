@@ -30,15 +30,18 @@ gen.df.from.ts <- function(ts, type) {
 
 ## Scale a given data set to the range [min,max]
 scale.data <- function(dat, .min=0, .max=1) {
-  ## calculate the scale factor with which to divide the data
+  if (length(dat) == 0) {
+    return(numeric(0))
+  }
+
   maxDat <- max(dat)
   scale.factor <- (maxDat - min(dat))/(.max - .min)
-  ## If the data is not all the same, do apply the scale factor
+
   if (scale.factor > 0) {
     dat <- dat / scale.factor
     maxDat <- maxDat / scale.factor
   }
-  ## Set the maximum to .max
+
   dat <- dat + (- maxDat + .max)
   return(dat)
 }

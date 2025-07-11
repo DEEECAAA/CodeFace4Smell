@@ -127,8 +127,12 @@ graph.difference <- function(g1,g2, weighted=FALSE) {
 ## Compare the results of the tag and non tag based graphs
 graph.comparison <- function(g.1, g.2) {
   ## Normalize graphs to have binary edge weight
-  E(g.1)$weight <- ceiling( scale.data(E(g.1)$weight, 0, 1) )
-  E(g.2)$weight <- ceiling( scale.data(E(g.2)$weight, 0, 1) )
+  if (ecount(g.1) > 0) {
+    E(g.1)$weight <- ceiling(scale.data(E(g.1)$weight, 0, 1))
+  }
+  if (ecount(g.2) > 0) {
+    E(g.2)$weight <- ceiling(scale.data(E(g.2)$weight, 0, 1))
+  }
 
   intersectNames <- intersect(V(g.1)$Id, V(g.2)$Id)
   idx.1 <- match(intersectNames, V(g.1)$Id)

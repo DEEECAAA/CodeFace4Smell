@@ -1101,9 +1101,10 @@ writePageRankData <- function(conf, outdir, .iddb, devs.by.pr, devs.by.pr.tr) {
 ##     					 Main Functions
 #########################################################################
 
-performAnalysis <- function(outdir, conf, releaseRangeId = NULL) {
+performAnalysis.persons <- function(outdir, conf, releaseRangeId = NULL) {
   message("📌 DEBUG: conf$pid = ", conf$pid)
   message("📌 DEBUG: conf$range.id = ", conf$range.id)
+  message("✅ ENTERED CORRECT performAnalysis")
 
   args <- commandArgs(trailingOnly = TRUE)
   original_range_id <- as.numeric(args[length(args)])
@@ -1555,16 +1556,16 @@ config.script.run({
   conf_copy <- conf  # backup
 
   args <- list(outdir = resdir, conf = conf)
-  if ("releaseRangeId" %in% names(formals(performAnalysis))) {
+  if ("releaseRangeId" %in% names(formals(performAnalysis.persons))) {
     args$releaseRangeId <- rid
   }
 
   tryCatch({
-    do.call(performAnalysis, args)
+    do.call(performAnalysis.persons, args)
   }, error = function(e) {
     if (grepl("unused argument.*releaseRangeId", conditionMessage(e))) {
       message("⚠️ releaseRangeId not accepted — retrying without it")
-      do.call(performAnalysis, list(outdir = resdir, conf = conf_copy))
+      do.call(performAnalysis.persons, list(outdir = resdir, conf = conf_copy))
     } else {
       stop(e)
     }

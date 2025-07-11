@@ -111,11 +111,13 @@ def runBashCommand(command, shell=False, stdin=None, stdout=None):
 
 def replaceMultiplePatterns(replacements, infile, outfile):
     with open(infile, "rb") as source:
-        with open(outfile, "w") as target:
-            data = source.read()
-            for pattern, replacement in replacements.items():
-                data = re.sub(pattern, replacement, data, flags=re.MULTILINE)
-            target.write(data)
+        data = source.read().decode("utf-8")
+
+    for pattern, replacement in replacements.items():
+        data = re.sub(pattern, replacement, data, flags=re.MULTILINE)
+
+    with open(outfile, "w", encoding="utf-8") as target:
+        target.write(data)
 
 
 def stripEmptyLinesFromFile(infile, outfile):
