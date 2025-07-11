@@ -150,10 +150,10 @@ class BatchJobPool(object):
             # Terminate and join the workers
             # Wait 100ms to allow backtraces to be logged
             sleep(0.1)
-            log.debug("Terminating workers...")
+            log.devinfo("Terminating workers...")
             for w in self.workers:
                 w.terminate()
-            log.debug("Workers terminated.")
+            log.devinfo("Workers terminated.")
 
 def batchjob_worker_function(work_queue, done_queue):
     '''
@@ -205,7 +205,7 @@ def handle_sigint(signal, frame):
     with l:
         log.fatal("CTRL-C pressed!")
         for c in get_stack_dump():
-            log.debug(c)
+            log.devinfo(c)
     # This call raises a SystemExit exception in the
     # stack frame that was interrupted by the signal
     # For the main thread, this is what we want.
@@ -216,7 +216,7 @@ def handle_sigint(signal, frame):
 def handle_sigint_silent(signal, frame):
     with l:
         for c in get_stack_dump():
-            log.debug(c)
+            log.devinfo(c)
     logging.shutdown()
     # Since we want to terminate worker threads with prejudice,
     # we use os._exit, which directly terminates the process.
@@ -331,7 +331,7 @@ def layout_graph(filename):
     os.unlink(out.name)
 
 def generate_report(start_rev, end_rev, resdir):
-    log.debug("  -> Generating report")
+    log.devinfo("  -> Generating report")
     report_base = "report-{0}_{1}".format(start_rev, end_rev)
 
     # Run perl script to generate report LaTeX file

@@ -659,7 +659,7 @@ def apply(folder, options):
     featlocations = set()  # list of feature locations of class FeatureLocation
 
     # outputfile
-    fd, fdcsv = _prologCSV(os.path.join(folder, os.pardir), __outputfile, [e.name for e in __statsorder])
+    fd, fdcsv = _prologCSV(os.path.join(folder, os.pardir), __outputfile, __statsorder._keys)
 
     # list-of-features file
     loffheadings = ['FILENAME', 'CONSTANTS']
