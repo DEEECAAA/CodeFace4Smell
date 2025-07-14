@@ -43,7 +43,7 @@ from . import fileCommit
 import re
 import os
 import bisect
-import pyctags as ctags
+# import pyctags as ctags
 import tempfile
 from . import sourceAnalysis
 import shutil

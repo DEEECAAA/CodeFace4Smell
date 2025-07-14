@@ -41,6 +41,8 @@ graph.comparison.test <- function () {
   idx <- 1:vcount(g.1)
   rand.idx <- sample(idx,size=length(idx))
   g.2 <- graph_from_adjacency_matrix(g.1[rand.idx,rand.idx])
+  E(g.1)$weight <- rep(1, ecount(g.1))
+  E(g.2)$weight <- rep(1, ecount(g.2))
   res <- graph.comparison(g.1, g.2)
   if(all(res==0)){
     print("Test Passed")
